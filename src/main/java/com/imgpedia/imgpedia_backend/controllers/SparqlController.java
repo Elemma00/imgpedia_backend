@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.imgpedia.imgpedia_backend.services.SparqlService;
 
 @RestController
-@RequestMapping("/sparql")
+@RequestMapping("api/sparql")
 public class SparqlController {
 
     @Autowired
