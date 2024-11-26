@@ -1,0 +1,46 @@
+@prefix : <http://imgpedia.dcc.uchile.cl/ontology#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# Example Images
+:image1 a :Image ;
+    :width "800"^^xsd:integer ;
+    :height "600"^^xsd:integer ;
+    :wikiCommonsURL <https://commons.wikimedia.org/wiki/File:Example1.jpg> ;
+    :appearsInWikipediaArticle <https://en.wikipedia.org/wiki/Example> .
+
+:image2 a :Image ;
+    :width "1024"^^xsd:integer ;
+    :height "768"^^xsd:integer ;
+    :wikiCommonsURL <https://commons.wikimedia.org/wiki/File:Example2.jpg> .
+
+# Example Descriptors
+:descriptor1 a :ColorLayoutDescriptor ;
+    :describesImage :image1 ;
+    :descriptorValue "[32, 45, 67, 89, 12, 34]" .
+
+:descriptor2 a :GrayHistogramDescriptor ;
+    :describesImage :image1 ;
+    :descriptorValue "[120, 145, 167, 189, 112, 134]" .
+
+:descriptor3 a :HistogramOfOrientedGradient ;
+    :describesImage :image2 ;
+    :descriptorValue "[45, 67, 89, 12, 34, 56]" .
+
+# Example Image Relations
+:relation1 a :ImageRelation ;
+    :sourceImage :image1 ;
+    :targetImage :image2 ;
+    :usedDescriptor :descriptor1 ;
+    :imageDistance "0.75"^^xsd:float .
+
+:relation2 a :ImageRelation ;
+    :sourceImage :image2 ;
+    :targetImage :image1 ;
+    :usedDescriptor :descriptor3 ;
+    :imageDistance "0.82"^^xsd:float .
+
+
+:descriptor1 :descriptorValue "[32, 45, 67, 89, 12, 34]" .
+:descriptor2 :descriptorValue "[120, 145, 167, 189, 112, 134]" .
+:descriptor3 :descriptorValue "[45, 67, 89, 12, 34, 56]" .

@@ -1,0 +1,21 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:v="http://example.org/v#"
+         xmlns:sim="http://ex.com/">
+
+  <!-- Nodo para x=1 -->
+  <rdf:Description rdf:about="http://example.org/x1">
+    <v:valor>"[ 1.0, 2.0, 3.0 ]"</v:valor>
+  </rdf:Description>
+
+  <!-- Nodo para x=2 -->
+  <rdf:Description rdf:about="http://example.org/x2">
+    <v:valor>"[ 4.0, 5.0, 6.0 ]"</v:valor>
+  </rdf:Description>
+
+  <!-- Nodo para x=3 -->
+  <rdf:Description rdf:about="http://example.org/x3">
+    <v:valor>"[ 7.0, 8.0, 9.0 ]"</v:valor>
+  </rdf:Description>
+
+  <!-- Más nodos con vectores similares -->
+</rdf:RDF>

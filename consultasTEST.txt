@@ -1,0 +1,52 @@
+PREFIX : <http://imgpedia.dcc.uchile.cl/ontology#>
+
+SELECT ?image ?width ?height
+WHERE {
+    ?image a :Image ;
+           :width ?width ;
+           :height ?height .
+}
+
+
+
+
+
+##########################
+
+
+PREFIX : <http://imgpedia.dcc.uchile.cl/ontology#>
+
+SELECT ?descriptorType ?value
+WHERE {
+    ?descriptor a ?descriptorType ;
+               :describesImage :image1 ;
+               :descriptorValue ?value .
+    FILTER(?descriptorType != :Descriptor)
+}
+
+
+############################
+
+PREFIX : <http://imgpedia.dcc.uchile.cl/ontology#>
+
+SELECT ?source ?target ?distance ?descriptorType
+WHERE {
+    ?relation a :ImageRelation ;
+              :sourceImage ?source ;
+              :targetImage ?target ;
+              :imageDistance ?distance ;
+              :usedDescriptor ?descriptor .
+    ?descriptor a ?descriptorType .
+}
+
+
+###########################################
+
+PREFIX : <http://imgpedia.dcc.uchile.cl/ontology#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?type (COUNT(?instance) as ?count)
+WHERE {
+    ?instance rdf:type ?type .
+}
+GROUP BY ?type
