@@ -27,7 +27,7 @@ public class SparqlService {
             
             // ResultSetFormatter.out(System.out, results, query);
       
-            return ResultSetFactory.copyResults(results);
+            return results;
         }
     }
 
