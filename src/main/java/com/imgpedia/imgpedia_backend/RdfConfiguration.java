@@ -6,11 +6,13 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.context.annotation.ApplicationScope;
 
 @Configuration
 public class RdfConfiguration {
 
     @Bean(name = "rdfModel")
+    @ApplicationScope
     public Model rdfModel() {
         Model model = ModelFactory.createDefaultModel();
         try {
