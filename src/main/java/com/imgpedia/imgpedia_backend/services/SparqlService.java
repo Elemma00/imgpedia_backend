@@ -4,6 +4,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
@@ -26,6 +27,8 @@ public class SparqlService {
     @Qualifier("rdfModel")
     private Model rdfModel;
 
+    private final AtomicReference<QueryExecution> currentQueryExecution = new AtomicReference<>();
+
     public ResultSet executeQuery(SparqlQueryDTO queryDTO) throws InterruptedException, ExecutionException {
         String queryString = queryDTO.getQuery();
         String graph = queryDTO.getGraph().orElse(null);
@@ -34,6 +37,7 @@ public class SparqlService {
         Query query = QueryFactory.create(queryString, Syntax.syntaxSPARQL_11_sim);
     
         try (QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel)) {
+            currentQueryExecution.set(qexec);
             if (graph != null && !graph.isEmpty()) {
                 System.out.println("GRAPH: " + graph);
             }
@@ -59,20 +63,29 @@ public class SparqlService {
                     }
                 }
             }
+        } finally {
+            currentQueryExecution.set(null);
         }
     }
 
-    public boolean executeAsk(String queryString) {
-        Query query = QueryFactory.create(queryString);
-        try (QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel)) {
-            return qexec.execAsk();
+    public void stopQuery() {
+        QueryExecution qexec = currentQueryExecution.getAndSet(null);
+        if (qexec != null) {
+            qexec.abort();
         }
     }
 
-    public Model executeConstruct(String queryString) {
-        Query query = QueryFactory.create(queryString);
-        try (QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel)) {
-            return qexec.execConstruct();
-        }
-    }
+    // public boolean executeAsk(String queryString) {
+    //     Query query = QueryFactory.create(queryString);
+    //     try (QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel)) {
+    //         return qexec.execAsk();
+    //     }
+    // }
+
+    // public Model executeConstruct(String queryString) {
+    //     Query query = QueryFactory.create(queryString);
+    //     try (QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel)) {
+    //         return qexec.execConstruct();
+    //     }
+    // }
 }

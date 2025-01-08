@@ -46,6 +46,19 @@ public class SparqlController {
         }
     }
 
+    @PostMapping("/query/stop")
+public ResponseEntity<?> stopQuery() {
+    try {
+        sparqlService.stopQuery();
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Query stopped successfully");
+        return ResponseEntity.ok(response);
+    } catch (Exception e) {
+        Map<String, String> errorResponse = new HashMap<>();
+        errorResponse.put("error", "Error stopping query: " + e.getMessage());
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+}
     private void format_setter(SparqlQueryDTO queryDTO, ResultSet results, ByteArrayOutputStream outputStream) {
         switch (queryDTO.getFormat().toLowerCase()) {
             case "json" -> ResultSetFormatter.outputAsJSON(outputStream, results);
