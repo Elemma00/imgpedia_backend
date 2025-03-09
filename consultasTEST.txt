@@ -8,9 +8,6 @@ WHERE {
 }
 
 
-
-
-
 ##########################
 
 
@@ -50,3 +47,33 @@ WHERE {
     ?instance rdf:type ?type .
 }
 GROUP BY ?type
+
+#############################################
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX v: <http://example.org/v#>
+PREFIX ns1: <http://example.org/ns#>
+PREFIX sim: <http://sj.dcc.uchile.cl/sim#>
+PREFIX imo: <http://imgpedia.dcc.uchile.cl/ontology#>
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+
+SELECT ?x ?y ?d WHERE {
+   {?x v:valor ?xv }
+   SIMILARITY JOIN ON (?xv) (?yv) TOP 3 DISTANCE sim:manhattanvec AS ?d
+   {?y v:valor ?yv}
+}
+
+
+
+#############################################
+
+PREFIX : <http://imgpedia.dcc.uchile.cl/ontology#>
+PREFIX sim: <http://sj.dcc.uchile.cl/sim#>
+
+SELECT ?x ?y ?d WHERE {
+   {?x :descriptorValue ?xv }
+   SIMILARITY JOIN ON (?xv) (?yv) TOP 3 DISTANCE sim:manhattanvec AS ?d
+   {?y :descriptorValue ?yv}
+}
