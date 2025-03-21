@@ -1,4 +1,4 @@
-package com.imgpedia.imgpedia_backend;
+package com.imgpedia.imgpedia_backend.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

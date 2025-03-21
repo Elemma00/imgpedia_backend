@@ -10,11 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.imgpedia.imgpedia_backend.controllers.interfaces.SparqlApiController;
+import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 import com.imgpedia.imgpedia_backend.models.SparqlQueryDTO;
 import com.imgpedia.imgpedia_backend.services.SparqlService;
 
@@ -22,43 +23,50 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("api/sparql")
-public class SparqlController {
+public class SparqlController implements SparqlApiController {
 
     @Autowired
     private SparqlService sparqlService;
 
-    @PostMapping("/query")
+    @Override
     public ResponseEntity<?> query(@Valid @RequestBody SparqlQueryDTO queryDTO, BindingResult bindingResult) {
+        ImgpediaLogger.logRequest("POST", "/api/sparql/query", null, queryDTO.getQuery());
 
-        if (bindingResult.hasFieldErrors()) {
+        if (bindingResult.hasFieldErrors())
             return validation(bindingResult);
-        }
 
         try {
             ResultSet results = sparqlService.executeQuery(queryDTO);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             format_setter(queryDTO, results, outputStream);
 
+            String responseQuery = outputStream.toString();
+            ImgpediaLogger.logResponse(200, responseQuery);
+
             return ResponseEntity.ok(outputStream.toString());
 
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Query error: " + e.getMessage());
+            ImgpediaLogger.logError("Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    @PostMapping("/query/stop")
-public ResponseEntity<?> stopQuery() {
-    try {
-        sparqlService.stopQuery();
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Query stopped successfully");
-        return ResponseEntity.ok(response);
-    } catch (Exception e) {
-        Map<String, String> errorResponse = new HashMap<>();
-        errorResponse.put("error", "Error stopping query: " + e.getMessage());
-        return ResponseEntity.badRequest().body(errorResponse);
+    @Override
+    public ResponseEntity<?> stopQuery() {
+        ImgpediaLogger.logRequest("POST", "/api/sparql/query/stop", null, null);
+        try {
+            sparqlService.stopQuery();
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Query stopped successfully");
+            ImgpediaLogger.logResponse(200, "Query stopped successfully");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Error stopping query: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
-}
+
     private void format_setter(SparqlQueryDTO queryDTO, ResultSet results, ByteArrayOutputStream outputStream) {
         switch (queryDTO.getFormat().toLowerCase()) {
             case "json" -> ResultSetFormatter.outputAsJSON(outputStream, results);

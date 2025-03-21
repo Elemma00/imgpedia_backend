@@ -1,6 +1,5 @@
 package com.imgpedia.imgpedia_backend.models;
 
-import java.text.Format;
 import java.util.Optional;
 
 import jakarta.validation.constraints.Min;
@@ -12,6 +11,7 @@ public class SparqlQueryDTO {
     @NotBlank(message = "SPARQL query cannot be empty")
     private String query;
     
+    // Este atributo no se esta usando actualmente, ya que solo se usa 1 grafo
     private Optional<String> graph = Optional.empty();
     
     @Min(value = 0, message = "Timeout must be greater than or equal to 0")
@@ -52,4 +52,11 @@ public class SparqlQueryDTO {
         this.format = format;
     }
 
+    @Override
+    public String toString() {
+        return "SparqlQueryDTO [query=" + query + ", graph=" + graph + ", timeout=" + timeout + ", format=" + format
+                + "]";
+    }
+    
+    
 }

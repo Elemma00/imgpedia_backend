@@ -1,4 +1,4 @@
-package com.imgpedia.imgpedia_backend;
+package com.imgpedia.imgpedia_backend.dataload;
 
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
