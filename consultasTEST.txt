@@ -77,3 +77,37 @@ SELECT ?x ?y ?d WHERE {
    SIMILARITY JOIN ON (?xv) (?yv) TOP 3 DISTANCE sim:manhattanvec AS ?d
    {?y :descriptorValue ?yv}
 }
+
+
+##############################################
+
+PREFIX sim: <http://sj.dcc.uchile.cl/sim#>
+PREFIX imo: <http://imgpedia.dcc.uchile.cl/ontology#>
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+
+SELECT ?lifex ?growth ?code ?c WHERE {
+    ?c1 wdt:P31 wd:Q6256 ; #countries
+        wdt:P2250 ?lifex ;
+        wdt:P2219 ?growth;
+        wdt:P297 ?code .
+}
+CLUSTER BY ?lifex ?growth WITH sim:kmeans(4) AS ?c
+
+
+########################################################
+
+PREFIX sim: <http://sj.dcc.uchile.cl/sim#>
+PREFIX imo: <http://imgpedia.dcc.uchile.cl/ontology#>
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+
+SELECT ?lifex ?growth ?code ?c WHERE {
+    SERVICE <https://query.wikidata.org/bigdata/namespace/wdq/sparql>{ 
+    ?c1 wdt:P31 wd:Q6256 ; #countries
+        wdt:P2250 ?lifex ;
+        wdt:P2219 ?growth;
+        wdt:P297 ?code .
+  }
+}
+CLUSTER BY ?lifex ?growth WITH sim:kmeans(4) AS ?c
