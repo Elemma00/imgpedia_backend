@@ -111,3 +111,36 @@ SELECT ?lifex ?growth ?code ?c WHERE {
   }
 }
 CLUSTER BY ?lifex ?growth WITH sim:kmeans(4) AS ?c
+
+
+#####################################
+PREFIX sim: <http://sj.dcc.uchile.cl/sim#>  
+PREFIX ex: <http://example.org/>  
+
+SELECT ?lifex ?growth ?code ?c WHERE {  
+  ?c1 a ex:Country ;  
+           ex:lifex ?lifex ;  
+           ex:growth ?growth ;  
+           ex:code ?code .  
+} CLUSTER BY ?lifex ?growth WITH sim:kmeans(4) AS ?c
+
+
+#######################################################
+
+PREFIX sim: <http://sj.dcc.uchile.cl/sim#>
+PREFIX imo: <http://imgpedia.dcc.uchile.cl/ontology#>
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+
+SELECT ?country ?lifeExpectancy ?hdi ?isoCode ?c WHERE {
+   SERVICE <https://query.wikidata.org/sparql>{ 
+  ?country wdt:P31 wd:Q6256 ;           
+           wdt:P2250 ?lifeExpectancy ;  
+           wdt:P297 ?isoCode ;          
+           wdt:P1081 ?hdi .  # IDH 
+  BIND(?hdi * 10 AS ?scaledHDI)
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],es". }
+  }
+} CLUSTER BY ?lifeExpectancy ?hdi WITH sim:kmeans(4) AS ?c
