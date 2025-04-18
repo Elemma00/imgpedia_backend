@@ -102,12 +102,19 @@
             <scope>system</scope>
             <systemPath>${project.basedir}/libs/jena-dboe-index.jar</systemPath>
         </dependency>
-         <dependency>
+        <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-dboe-trans-data</artifactId>
             <version>5.2.0</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/libs/jena-dboe-trans-data.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-dboe-transaction</artifactId>
+            <version>5.2.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/jena-dboe-transaction.jar</systemPath>
         </dependency>
 
 
