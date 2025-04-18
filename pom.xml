@@ -81,6 +81,20 @@
             <scope>system</scope>
             <systemPath>${project.basedir}/libs/jena-tdb2.jar</systemPath>
         </dependency>
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-dboe-base</artifactId>
+            <version>5.2.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/jena-dboe-base.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-dboe-storage</artifactId>
+            <version>5.2.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/jena-dboe-storage.jar</systemPath>
+        </dependency>
 
         <!-- Extra Dependencies for Apache Jena (DO NOT ERASE ) -->
         <dependency>

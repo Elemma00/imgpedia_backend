@@ -2,10 +2,9 @@ package com.imgpedia.imgpedia_backend.dataload;
 
 import java.io.File;
 
-import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.tdb1.TDB1Factory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.context.annotation.ApplicationScope;
@@ -15,8 +14,7 @@ import jakarta.annotation.PostConstruct;
 @Configuration
 public class RdfConfiguration {
 
-    private Dataset dataset = TDB1Factory.createDataset("DB"); 
-    private final Model model = dataset.getDefaultModel();
+    private final Model model = ModelFactory.createDefaultModel();
 
     @PostConstruct
     public void initRdfModel() {
