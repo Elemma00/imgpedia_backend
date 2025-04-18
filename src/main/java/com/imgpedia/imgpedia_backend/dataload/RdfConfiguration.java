@@ -2,9 +2,10 @@ package com.imgpedia.imgpedia_backend.dataload;
 
 import java.io.File;
 
+import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.tdb1.TDB1Factory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.context.annotation.ApplicationScope;
@@ -14,17 +15,26 @@ import jakarta.annotation.PostConstruct;
 @Configuration
 public class RdfConfiguration {
 
-    private final Model model = ModelFactory.createDefaultModel();
+    private static final String DB = System.getProperty("user.dir") + File.separator + "imgpedia_tdb";
+
+    private final Dataset dataset = TDB1Factory.createDataset(DB);
+
+    private final Model model = dataset.getDefaultModel();
 
     @PostConstruct
     public void initRdfModel() {
         try {
+
+            if (!model.isEmpty()) {
+                return;
+            }
+    
             // Directorios que contienen los archivos RDF
             String[] directories = {
                 "/home/efaundez/imgpedia_backend/rdfs",
                 // "/NAS/sferrada/imgpedia/resource/img",
                 // "/NAS/sferrada/imgpedia/resource/sim",
-                "/NAS/sferrada/imgpedia/resource/wiki"
+                // "/NAS/sferrada/imgpedia/resource/wiki"
             };
 
             // Iterar sobre los directorios y cargar todos los archivos .ttl y .rdf
