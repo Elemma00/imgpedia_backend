@@ -1,32 +1,55 @@
 package com.imgpedia.imgpedia_backend.dataload;
 
+import java.io.File;
+
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.context.annotation.ApplicationScope;
 
+import jakarta.annotation.PostConstruct;
+
 @Configuration
 public class RdfConfiguration {
+
+    private final Model model = ModelFactory.createDefaultModel();
+
+    @PostConstruct
+    public void initRdfModel() {
+        try {
+            // Directorios que contienen los archivos RDF
+            String[] directories = {
+                "/home/efaundez/imgpedia_backend/rdfs",
+                // "/NAS/sferrada/imgpedia/resource/img",
+                // "/NAS/sferrada/imgpedia/resource/sim",
+                "/NAS/sferrada/imgpedia/resource/wiki"
+            };
+
+            // Iterar sobre los directorios y cargar todos los archivos .ttl y .rdf
+            for (String directoryPath : directories) {
+                File directory = new File(directoryPath);
+                if (directory.exists() && directory.isDirectory()) {
+                    File[] files = directory.listFiles((dir, name) -> name.endsWith(".ttl") || name.endsWith(".rdf"));
+                    if (files != null) {
+                        for (File file : files) {
+                            System.out.println("Cargando archivo: " + file.getAbsolutePath());
+                            RDFDataMgr.read(model, file.getAbsolutePath());
+                        }
+                    }
+                } else {
+                    System.err.println("El directorio no existe o no es válido: " + directoryPath);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initialize RDF model", e);
+        }
+    }
 
     @Bean(name = "rdfModel")
     @ApplicationScope
     public Model rdfModel() {
-        Model model = ModelFactory.createDefaultModel();
-        try {
-            RDFDataMgr.read(model, "./rdfs/vec3.rdf");
-            // Load ontology
-            RDFDataMgr.read(model, "./rdfs/imgpedia.ttl", Lang.TURTLE);
-            // Load instances
-            RDFDataMgr.read(model, "./rdfs/imgpedia_instances.ttl", Lang.TURTLE);
-            // Load similarity
-            // RDFDataMgr.read(model, "./rdfs/imgpedia_relations.ttl", Lang.TURTLE);
-
-            return model;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to initialize RDF model", e);
-        }
+        return this.model;
     }
 }
