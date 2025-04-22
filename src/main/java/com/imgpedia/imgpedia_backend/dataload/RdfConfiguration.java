@@ -18,8 +18,9 @@ import jakarta.annotation.PostConstruct;
 public class RdfConfiguration {
 
     private static final String DB = System.getenv("TDB_PATH") != null ? 
-                                   System.getenv("TDB_PATH") : 
-                                   "/home/efaundez/imgpedia_tdb";
+    System.getenv("TDB_PATH") : 
+    "/home/efaundez/imgpedia_tdb";
+
 
     private final Dataset dataset = TDB1Factory.createDataset(DB);
 
@@ -47,7 +48,7 @@ public class RdfConfiguration {
             "/home/efaundez/imgpedia_backend/rdfs",
             // "/NAS/sferrada/imgpedia/resource/img",
             // "/NAS/sferrada/imgpedia/resource/sim",
-            "/nas_mount/imgpedia/resource/wiki", 
+            "/NAS/sferrada/imgpedia/resource/wiki", 
             // "/NAS/sferrada/imgpedia/resource/dbp",
         };
     }
