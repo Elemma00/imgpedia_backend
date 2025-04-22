@@ -4,7 +4,10 @@ import java.io.File;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFLanguages;
+import org.apache.jena.riot.RDFParser;
+import org.apache.jena.riot.system.ErrorHandler;
+import org.apache.jena.riot.system.ErrorHandlerFactory;
 import org.apache.jena.tdb1.TDB1Factory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,37 +27,71 @@ public class RdfConfiguration {
     @PostConstruct
     public void initRdfModel() {
         try {
-
             if (!model.isEmpty()) {
                 return;
             }
-    
-            // Directorios que contienen los archivos RDF
-            String[] directories = {
-                "/home/efaundez/imgpedia_backend/rdfs",
-                // "/NAS/sferrada/imgpedia/resource/img",
-                // "/NAS/sferrada/imgpedia/resource/sim",
-                // "/NAS/sferrada/imgpedia/resource/wiki"
-            };
 
-            // Iterar sobre los directorios y cargar todos los archivos .ttl y .rdf
+            String[] directories = getRdfDirectories();
+
             for (String directoryPath : directories) {
-                File directory = new File(directoryPath);
-                if (directory.exists() && directory.isDirectory()) {
-                    File[] files = directory.listFiles((dir, name) -> name.endsWith(".ttl") || name.endsWith(".rdf"));
-                    if (files != null) {
-                        for (File file : files) {
-                            System.out.println("Cargando archivo: " + file.getAbsolutePath());
-                            RDFDataMgr.read(model, file.getAbsolutePath());
-                        }
-                    }
-                } else {
-                    System.err.println("El directorio no existe o no es válido: " + directoryPath);
-                }
+                processDirectory(directoryPath);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize RDF model", e);
         }
+    }
+
+    private String[] getRdfDirectories() {
+        return new String[] {
+            "/home/efaundez/imgpedia_backend/rdfs",
+            // "/NAS/sferrada/imgpedia/resource/img",
+            // "/NAS/sferrada/imgpedia/resource/sim",
+            "/NAS/sferrada/imgpedia/resource/wiki", 
+            // "/NAS/sferrada/imgpedia/resource/dbp",
+        };
+    }
+
+    private void processDirectory(String directoryPath) {
+        File directory = new File(directoryPath);
+        if (directory.exists() && directory.isDirectory()) {
+            File[] files = directory.listFiles((dir, name) -> name.endsWith(".ttl") || name.endsWith(".rdf"));
+            if (files != null) {
+                for (File file : files) {
+                    processFile(file);
+                }
+            }
+        } else {
+            System.err.println("El directorio no existe o no es válido: " + directoryPath);
+        }
+    }
+
+    private void processFile(File file) {
+        try {
+            System.out.println("Cargando archivo: " + file.getAbsolutePath());
+            RDFParser.create()
+                    .source(file.getAbsolutePath())
+                    .lang(RDFLanguages.filenameToLang(file.getName()))
+                    .errorHandler(createErrorHandler())
+                    .parse(model.getGraph());
+        } catch (Exception e) {
+            System.err.println("Error al cargar el archivo: " + file.getAbsolutePath() + " - " + e.getMessage());
+        }
+    }
+
+    private ErrorHandler createErrorHandler() {
+        return new ErrorHandler() {
+            @Override
+            public void warning(String message, long line, long col) {
+            }
+
+            @Override
+            public void error(String message, long line, long col) {
+            }
+
+            @Override
+            public void fatal(String message, long line, long col) {
+            }
+        };
     }
 
     @Bean(name = "rdfModel")

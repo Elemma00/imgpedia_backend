@@ -14,6 +14,12 @@ import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 @ControllerAdvice
 public class ControllerExceptionHandler {
 
+    @ExceptionHandler(OutOfMemoryError.class)
+    public ResponseEntity<?> handlerOutOfMemoryError(OutOfMemoryError e, WebRequest request) {
+        ImgpediaLogger.logError(e.getMessage());
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
     @ExceptionHandler(MalformedQueryException.class)
     public ResponseEntity<?> handlerMalformedQueryException(MalformedQueryException e, WebRequest request) {
         ImgpediaLogger.logError(e.getMessage());
