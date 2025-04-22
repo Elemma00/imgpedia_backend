@@ -1,6 +1,8 @@
 package com.imgpedia.imgpedia_backend.dataload;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
@@ -60,20 +62,20 @@ public class RdfConfiguration {
                 }
             }
         } else {
-            System.err.println("El directorio no existe o no es válido: " + directoryPath);
+            System.err.println("Directory not valid: " + directoryPath);
         }
     }
 
     private void processFile(File file) {
-        try {
-            System.out.println("Cargando archivo: " + file.getAbsolutePath());
+        try(InputStream inputStream = new FileInputStream(file)){
+            System.out.println("Loading file: " + file.getAbsolutePath());
             RDFParser.create()
-                    .source(file.getAbsolutePath())
+                    .source(inputStream)
                     .lang(RDFLanguages.filenameToLang(file.getName()))
                     .errorHandler(createErrorHandler())
                     .parse(model.getGraph());
         } catch (Exception e) {
-            System.err.println("Error al cargar el archivo: " + file.getAbsolutePath() + " - " + e.getMessage());
+            System.err.println("Error while loading file: " + file.getAbsolutePath() + " - " + e.getMessage());
         }
     }
 
