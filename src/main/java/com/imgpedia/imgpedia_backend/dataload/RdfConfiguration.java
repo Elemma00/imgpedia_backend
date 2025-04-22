@@ -7,7 +7,6 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RDFParser;
 import org.apache.jena.riot.system.ErrorHandler;
-import org.apache.jena.riot.system.ErrorHandlerFactory;
 import org.apache.jena.tdb1.TDB1Factory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

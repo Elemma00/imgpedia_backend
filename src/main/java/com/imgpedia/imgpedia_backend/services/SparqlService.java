@@ -14,7 +14,6 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFactory;
 import org.apache.jena.query.Syntax;
 import org.apache.jena.rdf.model.Model;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -26,9 +25,11 @@ import com.imgpedia.imgpedia_backend.utils.ErrorMessages;
 @Service
 public class SparqlService {
 
-    @Autowired()
-    @Qualifier("rdfModel")
-    private Model rdfModel;
+    private final Model rdfModel;
+    
+    public SparqlService(@Qualifier("rdfModel") Model rdfModel) {
+        this.rdfModel = rdfModel;
+    }
 
     private final AtomicReference<QueryExecution> currentQueryExecution = new AtomicReference<>();
 

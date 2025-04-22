@@ -40,7 +40,6 @@ public class SparqlController implements SparqlApiController {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             format_setter(queryDTO, results, outputStream);
 
-            String responseQuery = outputStream.toString();
             ImgpediaLogger.logResponse(200, "Query executed successfully");
 
             return ResponseEntity.ok(outputStream.toString());
