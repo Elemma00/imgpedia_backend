@@ -47,7 +47,7 @@ public class RdfConfiguration {
             "/home/efaundez/imgpedia_backend/rdfs",
             // "/NAS/sferrada/imgpedia/resource/img",
             // "/NAS/sferrada/imgpedia/resource/sim",
-            "/NAS/sferrada/imgpedia/resource/wiki", 
+            "/nas_mount/imgpedia/resource/wiki", 
             // "/NAS/sferrada/imgpedia/resource/dbp",
         };
     }
