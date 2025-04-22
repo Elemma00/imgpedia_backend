@@ -17,7 +17,9 @@ import jakarta.annotation.PostConstruct;
 @Configuration
 public class RdfConfiguration {
 
-    private static final String DB = System.getProperty("user.dir") + File.separator + "imgpedia_tdb";
+    private static final String DB = System.getenv("TDB_PATH") != null ? 
+                                   System.getenv("TDB_PATH") : 
+                                   "/home/efaundez/imgpedia_tdb";
 
     private final Dataset dataset = TDB1Factory.createDataset(DB);
 

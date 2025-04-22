@@ -1,2 +1,20 @@
 version: "3.9"
 
+services:
+  imgpedia:
+    build: .
+    environment:
+      - TDB_PATH=/host_home/imgpedia_tdb
+    volumes:
+      # Para la TDB en /home/efaundez del host
+      - /home/efaundez:/host_home
+      
+      # Para acceder a los RDF locales
+      - /home/efaundez/imgpedia_backend/rdfs:/home/efaundez/imgpedia_backend/rdfs:ro
+      
+      # Para acceder al NAS
+      - /NAS/sferrada/imgpedia/resource:/nas_mount/imgpedia/resource:ro
+    ports:
+      - "8081:8081"
+    # Configuración de usuario para permisos
+    user: "${UID:-1000}:${GID:-1000}"
