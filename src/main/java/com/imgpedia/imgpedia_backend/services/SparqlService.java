@@ -32,51 +32,60 @@ public class SparqlService {
     }
 
     private final AtomicReference<QueryExecution> currentQueryExecution = new AtomicReference<>();
-
     public ResultSet executeQuery(SparqlQueryDTO queryDTO) throws InterruptedException, ExecutionException, TimeoutException {
-        String queryString = queryDTO.getQuery();
-        String graph = queryDTO.getGraph().orElse(null);
+        rdfModel.getGraph().getTransactionHandler().begin();
+        Query query = createQuery(queryDTO.getQuery());
         Integer timeout = queryDTO.getTimeout();
-        Query query;
-        
-        try {
-            ImgpediaLogger.logInfo("Creating query");
-            query = QueryFactory.create(queryString, Syntax.syntaxSPARQL_11_sim);
-        } catch (Exception e) {
-            throw new MalformedQueryException(ErrorMessages.INVALID_QUERY_SYNTAX + ": " + e.getMessage());
-        }
-    
+
         try (QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel)) {
-            ImgpediaLogger.logInfo("Executing query");
             currentQueryExecution.set(qexec);
-            
-            if (timeout == 0 || timeout == null) {
-                ImgpediaLogger.logInfo("Query executed without timeout");
-                ResultSet originalResults = qexec.execSelect();
-                return ResultSetFactory.copyResults(originalResults);
-            } else {
-                ImgpediaLogger.logInfo("Query executed with timeout: " + timeout + "ms" );
-                CompletableFuture<ResultSet> future = CompletableFuture.supplyAsync(() -> {
-                    ResultSet originalResults = qexec.execSelect();
-                    return ResultSetFactory.copyResults(originalResults);
-                });
-    
-                try {
-                    ResultSet results = future.orTimeout(timeout, TimeUnit.MILLISECONDS).get();
-                    ImgpediaLogger.logInfo("Query executed successfully");
-                    return results;
-                } catch (ExecutionException e) {
-                    if (e.getCause() instanceof TimeoutException) {
-                        qexec.abort();
-                        throw new TimeoutException(ErrorMessages.QUERY_TIMEOUT + timeout + "ms");
-                    } else {
-                        throw new ExecutionException(ErrorMessages.QUERY_EXECUTION_FAILED, e);
-                    }
-                }
-            }
+            return executeQueryWithTimeout(qexec, timeout);
         } finally {
             currentQueryExecution.set(null);
         }
+    }
+
+    private Query createQuery(String queryString) {
+        try {
+            ImgpediaLogger.logInfo("Creating query");
+            return QueryFactory.create(queryString, Syntax.syntaxSPARQL_11_sim);
+        } catch (Exception e) {
+            throw new MalformedQueryException(ErrorMessages.INVALID_QUERY_SYNTAX + ": " + e.getMessage());
+        }
+    }
+
+    private ResultSet executeQueryWithTimeout(QueryExecution qexec, Integer timeout) throws InterruptedException, ExecutionException, TimeoutException {
+        if (timeout == null || timeout == 0) {
+            ImgpediaLogger.logInfo("Executing query without timeout");
+            return copyResults(qexec.execSelect());
+        } else {
+            ImgpediaLogger.logInfo("Executing query with timeout: " + timeout + "ms");
+            return executeWithTimeout(qexec, timeout);
+        }
+    }
+
+    private ResultSet executeWithTimeout(QueryExecution qexec, Integer timeout) throws InterruptedException, ExecutionException, TimeoutException {
+        CompletableFuture<ResultSet> future = CompletableFuture.supplyAsync(() -> copyResults(qexec.execSelect()));
+
+        try {
+            return future.orTimeout(timeout, TimeUnit.MILLISECONDS).get();
+        } catch (ExecutionException e) {
+            handleExecutionException(qexec, e, timeout);
+            return null;
+        }
+    }
+
+    private void handleExecutionException(QueryExecution qexec, ExecutionException e, Integer timeout) throws ExecutionException, TimeoutException {
+        if (e.getCause() instanceof TimeoutException) {
+            qexec.abort();
+            throw new TimeoutException(ErrorMessages.QUERY_TIMEOUT + timeout + "ms");
+        } else {
+            throw new ExecutionException(ErrorMessages.QUERY_EXECUTION_FAILED, e);
+        }
+    }
+
+    private ResultSet copyResults(ResultSet originalResults) {
+        return ResultSetFactory.copyResults(originalResults);
     }
 
     public void stopQuery() {

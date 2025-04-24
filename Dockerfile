@@ -26,8 +26,6 @@ RUN mkdir -p /nas_mount/imgpedia/resource
 COPY --from=builder /app/imgpedia_backend/target/*.jar .
 
 ENV PORT 8081
-ENV TDB_PATH=/host_home/imgpedia_tdb 
-
 
 EXPOSE $PORT
 
