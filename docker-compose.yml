@@ -5,10 +5,11 @@ services:
     build: .
     image: elemma00/imgpedia_backend:latest
     restart: unless-stopped
+    pull_policy: always
     environment:
       - TDB_PATH=/imgpedia_tdb
     volumes:
-      - /home/efaundez/imgpedia_backend/rdfs:/rdfs
+      - /home/efaundez:/home/efaundez
       - /NAS/sferrada/imgpedia/imgpedia_tdb:/imgpedia_tdb
       - /NAS/sferrada:/nas_mount
       - /NAS/sferrada/imgpedia/resource:/nas_mount/imgpedia/resource

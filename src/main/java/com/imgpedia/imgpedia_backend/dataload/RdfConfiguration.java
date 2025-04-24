@@ -3,8 +3,10 @@ package com.imgpedia.imgpedia_backend.dataload;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.util.zip.GZIPInputStream;
 
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
@@ -35,6 +37,12 @@ public class RdfConfiguration {
 
     @PostConstruct
     public void initRdfModel() {
+
+        File tdbDir = new File(DB);
+        if (tdbDir.exists() && tdbDir.isDirectory() && tdbDir.list().length > 0) {
+            System.out.println("TDB directory exists and contains files, checking model...");
+        }
+        
         try {
             dataset.begin(ReadWrite.READ);
             try {
@@ -69,11 +77,10 @@ public class RdfConfiguration {
 
     private String[] getRdfDirectories() {
         return new String[] {
-            "/rdfs",
-            "/nas_mount",
-            "/nas_mount/imgpedia/resource/img",
+            "/home/efaundez/sanitized",
             "/nas_mount/imgpedia/resource/wiki", 
-            "/nas_mount/imgpedia/resource/dbp",
+            "/nas_mount/imgpedia/resource/img",
+            "/nas_mount",
         };
     }
     private void processDirectory(String directoryPath) {
@@ -110,17 +117,27 @@ public class RdfConfiguration {
     }
 
     private void processCompressedFile(File compressedFile) {
-        try (GZIPInputStream gzipInputStream = new GZIPInputStream(new FileInputStream(compressedFile))) {
+        try (FileInputStream fileInputStream = new FileInputStream(compressedFile);
+             GzipCompressorInputStream gzipInputStream = new GzipCompressorInputStream(fileInputStream);
+             TarArchiveInputStream tarInput = new TarArchiveInputStream(gzipInputStream)) {
+            
             System.out.println("Loading compressed file: " + compressedFile.getAbsolutePath());
-
-            RDFParser.create()
-                    .source(gzipInputStream)
-                    .lang(RDFLanguages.TURTLE)
-                    .errorHandler(createErrorHandler())
-                    .parse(new EncodeIRI(model));
-
+            
+            TarArchiveEntry currentEntry;
+            while ((currentEntry = tarInput.getNextTarEntry()) != null) {
+                if (!currentEntry.isDirectory() && currentEntry.getName().endsWith(".ttl")) {
+                    System.out.println("Processing entry: " + currentEntry.getName());
+                    
+                    RDFParser.create()
+                        .source(tarInput)
+                        .lang(RDFLanguages.TURTLE)
+                        .errorHandler(createErrorHandler())
+                        .parse(new EncodeIRI(model));
+                }
+            }
         } catch (Exception e) {
             System.err.println("Error while loading compressed file: " + compressedFile.getAbsolutePath() + " - " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
