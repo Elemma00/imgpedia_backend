@@ -2,17 +2,21 @@ version: "3.9"
 
 services:
   imgpedia_backend:
+    container_name: imgpedia_backend_container 
     build: .
     image: elemma00/imgpedia_backend:latest
     restart: unless-stopped
     pull_policy: always
     environment:
       - TDB_PATH=/imgpedia_tdb
+      - JAVA_OPTS=-Xmx8g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:ParallelGCThreads=4
     volumes:
       - /home/efaundez:/home/efaundez
       - /NAS/sferrada/imgpedia/imgpedia_tdb:/imgpedia_tdb
       - /NAS/sferrada:/nas_mount
       - /NAS/sferrada/imgpedia/resource:/nas_mount/imgpedia/resource
+      - /NAS/sferrada/imgpedia/logs:/app/logs
+      - /NAS/sferrada/imgpedia/temp_extraction:/imgpedia/temp_extraction
     ports:
       - "8081:8081"
     user: "${UID:-1000}:${GID:-1000}"

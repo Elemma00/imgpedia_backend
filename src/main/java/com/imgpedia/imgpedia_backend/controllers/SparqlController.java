@@ -45,7 +45,7 @@ public class SparqlController implements SparqlApiController {
             return ResponseEntity.ok(outputStream.toString());
 
         } catch (Exception e) {
-            ImgpediaLogger.logError("Error: " + e.getMessage());
+            ImgpediaLogger.error("Error: " + e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }

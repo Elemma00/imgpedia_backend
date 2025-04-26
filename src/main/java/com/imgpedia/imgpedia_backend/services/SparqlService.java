@@ -47,7 +47,7 @@ public class SparqlService {
 
     private Query createQuery(String queryString) {
         try {
-            ImgpediaLogger.logInfo("Creating query");
+            ImgpediaLogger.info("Creating query");
             return QueryFactory.create(queryString, Syntax.syntaxSPARQL_11_sim);
         } catch (Exception e) {
             throw new MalformedQueryException(ErrorMessages.INVALID_QUERY_SYNTAX + ": " + e.getMessage());
@@ -56,10 +56,10 @@ public class SparqlService {
 
     private ResultSet executeQueryWithTimeout(QueryExecution qexec, Integer timeout) throws InterruptedException, ExecutionException, TimeoutException {
         if (timeout == null || timeout == 0) {
-            ImgpediaLogger.logInfo("Executing query without timeout");
+            ImgpediaLogger.info("Executing query without timeout");
             return copyResults(qexec.execSelect());
         } else {
-            ImgpediaLogger.logInfo("Executing query with timeout: " + timeout + "ms");
+            ImgpediaLogger.info("Executing query with timeout: " + timeout + "ms");
             return executeWithTimeout(qexec, timeout);
         }
     }

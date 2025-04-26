@@ -13,12 +13,16 @@ public class ImgpediaLogger {
                 caller.getClassName(), caller.getMethodName(), caller.getLineNumber());
     }
 
-    public static void logInfo(String message) {
+    public static void info(String message) {
         logger.info(getCallerInfo() + " - " + message);
     }
 
-    public static void logError(String message) {
+    public static void error(String message) {
         logger.error(getCallerInfo() + " - " + message);
+    }
+
+    public static void warn(String message) {
+        logger.warn(getCallerInfo() + " - " + message);
     }
 
     public static void logRequest(String method, String uri, String params, String body) {

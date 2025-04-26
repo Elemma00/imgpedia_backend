@@ -16,31 +16,31 @@ public class ControllerExceptionHandler {
 
     @ExceptionHandler(OutOfMemoryError.class)
     public ResponseEntity<?> handlerOutOfMemoryError(OutOfMemoryError e, WebRequest request) {
-        ImgpediaLogger.logError(e.getMessage());
+        ImgpediaLogger.error(e.getMessage());
         return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(MalformedQueryException.class)
     public ResponseEntity<?> handlerMalformedQueryException(MalformedQueryException e, WebRequest request) {
-        ImgpediaLogger.logError(e.getMessage());
+        ImgpediaLogger.error(e.getMessage());
         return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(TimeoutException.class)
     public ResponseEntity<?> handlerTimeoutException(TimeoutException e, WebRequest request){
-        ImgpediaLogger.logError(e.getMessage());
+        ImgpediaLogger.error(e.getMessage());
         return new ResponseEntity<>(e.getMessage(), HttpStatus.REQUEST_TIMEOUT);
     }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> handlerRunTimeException(RuntimeException e, WebRequest request) {
-        ImgpediaLogger.logError(e.getMessage());
+        ImgpediaLogger.error(e.getMessage());
         return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handlerException(Exception e, WebRequest request) {
-        ImgpediaLogger.logError(e.getMessage());
+        ImgpediaLogger.error(e.getMessage());
         return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
