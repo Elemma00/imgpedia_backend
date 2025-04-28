@@ -41,6 +41,7 @@ public class RdfConfiguration {
     public RdfConfiguration() {
         this.dataset = TDB1Factory.createDataset(DB);
         dataset.begin(ReadWrite.READ);
+        ImgpediaLogger.info("Loading RDF model from TDB directory: " + DB);
         this.model = dataset.getDefaultModel();
         dataset.end();
         this.loadTracker = new RdfLoadTracker(TRACKER_FILE);
@@ -48,7 +49,7 @@ public class RdfConfiguration {
 
     @PostConstruct
     public void initRdfModel() {
-
+        ImgpediaLogger.info("Initializing RDF model...");
         File tdbDir = new File(DB);
         if (tdbDir.exists() && tdbDir.isDirectory() && tdbDir.list().length > 0) {
             ImgpediaLogger.info("TDB directory exists and contains files, checking model...");
@@ -88,7 +89,8 @@ public class RdfConfiguration {
     private String[] getRdfDirectories() {
         return new String[] {
             "/nas_mount/imgpedia/resource/wiki", 
-            "/nas_mount",
+            "/nas_mount/imgpedia/resource/sim", 
+            // "/nas_mount",
             "/home/efaundez/sanitized",
             "/nas_mount/imgpedia/resource/img",
         };
@@ -116,7 +118,6 @@ public class RdfConfiguration {
 
     private void processFile(File file) {
         if (loadTracker.isFileLoaded(file)) {
-            ImgpediaLogger.info("Skipping already loaded file: " + file.getAbsolutePath());
             return;
         }
         try (InputStream inputStream = new FileInputStream(file)) {
