@@ -244,7 +244,7 @@ public class RdfConfiguration {
                     .source(inputStream)
                     .lang(RDFLanguages.TURTLE)
                     .errorHandler(createErrorHandler())
-                    .parse(tempModel);
+                    .parse(new EncodeIRI(tempModel));
                     
             int batchSize = 10000;
             int statementsAdded = 0;
@@ -279,7 +279,7 @@ public class RdfConfiguration {
     }
 
    
-    private ErrorHandler createErrorHandler() {
+    public ErrorHandler createErrorHandler() {
         return new ErrorHandler() {
             @Override
             public void warning(String message, long line, long col) {
@@ -316,6 +316,12 @@ public class RdfConfiguration {
     @ApplicationScope
     public Model rdfModel() {
         return this.model;
+    }
+
+    @Bean(name = "rdfDataset")
+    @ApplicationScope
+    public Dataset rdfDataset() {
+        return this.dataset;
     }
     
 }

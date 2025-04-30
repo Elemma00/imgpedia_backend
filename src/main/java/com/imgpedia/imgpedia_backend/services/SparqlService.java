@@ -17,10 +17,10 @@ import org.apache.jena.rdf.model.Model;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+import com.imgpedia.imgpedia_backend.exceptions.ErrorMessages;
 import com.imgpedia.imgpedia_backend.exceptions.MalformedQueryException;
 import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 import com.imgpedia.imgpedia_backend.models.SparqlQueryDTO;
-import com.imgpedia.imgpedia_backend.utils.ErrorMessages;
 
 @Service
 public class SparqlService {
