@@ -19,7 +19,7 @@ services:
       - /NAS/sferrada/imgpedia/temp_extraction:/imgpedia/temp_extraction
     ports:
       - "8081:8081"
-    user: "${UID:-1000}:${GID:-1000}"
+    user: "1014:1003" # UID efaundez : GID del grupo sfc
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 30s

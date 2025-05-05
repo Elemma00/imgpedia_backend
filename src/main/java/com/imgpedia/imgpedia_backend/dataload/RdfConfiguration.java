@@ -88,11 +88,12 @@ public class RdfConfiguration {
 
     private String[] getRdfDirectories() {
         return new String[] {
-            "/nas_mount/imgpedia/resource/wiki", 
-            "/nas_mount/imgpedia/resource/sim", 
+            "./rdfs",
+            // "/nas_mount/imgpedia/resource/wiki", 
+            // "/nas_mount/imgpedia/resource/sim", 
             // "/nas_mount",
-            "/home/efaundez/sanitized",
-            "/nas_mount/imgpedia/resource/img",
+            // "/home/efaundez/sanitized",
+            // "/nas_mount/imgpedia/resource/img",
         };
     }
     private void processDirectory(String directoryPath) {

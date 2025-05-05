@@ -17,10 +17,10 @@ import org.apache.jena.rdf.model.Model;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import com.imgpedia.imgpedia_backend.exceptions.ErrorMessages;
 import com.imgpedia.imgpedia_backend.exceptions.MalformedQueryException;
 import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 import com.imgpedia.imgpedia_backend.models.SparqlQueryDTO;
+import com.imgpedia.imgpedia_backend.utils.MessagesLogs;
 
 @Service
 public class SparqlService {
@@ -50,7 +50,7 @@ public class SparqlService {
             ImgpediaLogger.info("Creating query");
             return QueryFactory.create(queryString, Syntax.syntaxSPARQL_11_sim);
         } catch (Exception e) {
-            throw new MalformedQueryException(ErrorMessages.INVALID_QUERY_SYNTAX + ": " + e.getMessage());
+            throw new MalformedQueryException(MessagesLogs.INVALID_QUERY_SYNTAX + ": " + e.getMessage());
         }
     }
 
@@ -78,9 +78,9 @@ public class SparqlService {
     private void handleExecutionException(QueryExecution qexec, ExecutionException e, Integer timeout) throws ExecutionException, TimeoutException {
         if (e.getCause() instanceof TimeoutException) {
             qexec.abort();
-            throw new TimeoutException(ErrorMessages.QUERY_TIMEOUT + timeout + "ms");
+            throw new TimeoutException(MessagesLogs.QUERY_TIMEOUT + timeout + "ms");
         } else {
-            throw new ExecutionException(ErrorMessages.QUERY_EXECUTION_FAILED, e);
+            throw new ExecutionException(MessagesLogs.QUERY_EXECUTION_FAILED, e);
         }
     }
 
