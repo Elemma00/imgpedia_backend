@@ -15,11 +15,7 @@ public interface RdfUploaderApiController {
     @Operation(summary = "Upload RDF data")
     @PostMapping("/upload")
     ResponseEntity<?> uploadRdfData(@RequestParam("file") MultipartFile file);
-
-    @Operation(summary = "Upload RDF data from URL")
-    @PostMapping("/upload/url")
-    ResponseEntity<?> uploadRdfDataFromUrl(@RequestParam("url") String url, @RequestParam("format") String format);
-                                
+      
     @Operation(summary = "Get status of RDF upload")
     @GetMapping("/status")
     ResponseEntity<?> getUploadStatus(@RequestParam("uploadId") String uploadId);

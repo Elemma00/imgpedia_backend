@@ -72,12 +72,6 @@ public class RdfUploaderController implements RdfUploaderApiController {
     }
 
     @Override
-    public ResponseEntity<?> uploadRdfDataFromUrl(String url, String format) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'uploadRdfDataFromUrl'");
-    }
-
-    @Override
     public ResponseEntity<?> getUploadStatus(String uploadId) {
         Map<String, Object> status = rdfUploadService.getUploadStatusById(uploadId);
         if ("not_found".equals(status.get("status"))) {
