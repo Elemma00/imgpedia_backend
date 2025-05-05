@@ -18,9 +18,9 @@ public class SparqlQueryDTO {
     private Integer timeout = 0;
     
     @Pattern(
-        regexp = "^(json|xml|csv|tsv)$", 
+        regexp = "^(json|xml|csv|tsv|ttl|nt)$", 
         flags = Pattern.Flag.CASE_INSENSITIVE,
-        message = "must be a string and be one of these options: JSON, XML, CSV"
+        message = "must be a string and be one of these options: JSON, XML, CSV, TSV, TTL, NT"
     )
     private String format = "json";
 

@@ -6,6 +6,13 @@ import java.util.Map;
 
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFFormat;
+import org.apache.jena.riot.RDFWriter;
+import org.apache.jena.riot.RIOT;
+import org.apache.jena.sparql.resultset.ResultsFormat;
+import org.apache.jena.sparql.resultset.ResultsWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -71,11 +78,14 @@ public class SparqlController implements SparqlApiController {
             case "json" -> ResultSetFormatter.outputAsJSON(outputStream, results);
             case "xml" -> ResultSetFormatter.outputAsXML(outputStream, results);
             case "csv" -> ResultSetFormatter.outputAsCSV(outputStream, results);
-            case "tsv" -> ResultSetFormatter.outputAsTSV(outputStream, results);
+            case "tsv" -> ResultSetFormatter.outputAsTSV(outputStream, results);    
+            case "ttl" -> ResultSetFormatter.output(outputStream, results, ResultsFormat.FMT_RDF_TTL);
+            case "nt" -> ResultSetFormatter.output(outputStream, results, ResultsFormat.FMT_RDF_NT);
             default -> ResultSetFormatter.outputAsJSON(outputStream, results);
         }
     }
 
+ 
     private ResponseEntity<?> validation(BindingResult result) {
         Map<String, String> errors = new HashMap<>();
 
