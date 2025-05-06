@@ -20,7 +20,6 @@ import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RDFParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -44,8 +43,7 @@ public class RdfUploadService {
     @Qualifier("rdfModel")
     private Model model;
 
-    @Value("${upload.dir:#{systemProperties['java.io.tmpdir'] + '/imgpedia_uploads'}}")
-    private String uploadDir;
+    private String uploadDir = "/imgpedia/temp_extraction";
 
     private final Map<String, Map<String, Object>> uploadStatus = new ConcurrentHashMap<>();
 
