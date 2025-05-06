@@ -6,13 +6,7 @@ import java.util.Map;
 
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter;
-import org.apache.jena.rdf.model.Model;
-import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFFormat;
-import org.apache.jena.riot.RDFWriter;
-import org.apache.jena.riot.RIOT;
 import org.apache.jena.sparql.resultset.ResultsFormat;
-import org.apache.jena.sparql.resultset.ResultsWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,16 +15,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.imgpedia.imgpedia_backend.controllers.interfaces.SparqlApiController;
+import com.imgpedia.imgpedia_backend.controllers.interfaces.SparqlApi;
 import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 import com.imgpedia.imgpedia_backend.models.SparqlQueryDTO;
 import com.imgpedia.imgpedia_backend.services.SparqlService;
+import com.imgpedia.imgpedia_backend.utils.MessagesLogs;
 
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("api/sparql")
-public class SparqlController implements SparqlApiController {
+public class SparqlController implements SparqlApi {
 
     @Autowired
     private SparqlService sparqlService;
@@ -47,12 +42,12 @@ public class SparqlController implements SparqlApiController {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             format_setter(queryDTO, results, outputStream);
 
-            ImgpediaLogger.logResponse(200, "Query executed successfully");
+            ImgpediaLogger.logResponse(200, MessagesLogs.QUERY_EXECUTED_SUCCESS);
 
             return ResponseEntity.ok(outputStream.toString());
 
         } catch (Exception e) {
-            ImgpediaLogger.error("Error: " + e.getMessage());
+            ImgpediaLogger.error(MessagesLogs.QUERY_DEFAULT_ERROR + e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -64,11 +59,11 @@ public class SparqlController implements SparqlApiController {
             sparqlService.stopQuery();
             Map<String, String> response = new HashMap<>();
             response.put("message", "Query stopped successfully");
-            ImgpediaLogger.logResponse(200, "Query stopped successfully");
+            ImgpediaLogger.logResponse(200, MessagesLogs.QUERY_STOPPED);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", "Error stopping query: " + e.getMessage());
+            errorResponse.put("error", MessagesLogs.QUERY_STOP_ERROR + e.getMessage());
             return ResponseEntity.badRequest().body(errorResponse);
         }
     }

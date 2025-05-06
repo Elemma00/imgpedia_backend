@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.imgpedia.imgpedia_backend.controllers.interfaces.RdfUploaderApiController;
+import com.imgpedia.imgpedia_backend.controllers.interfaces.RdfUploader;
 import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 import com.imgpedia.imgpedia_backend.services.RdfUploadService;
 import com.imgpedia.imgpedia_backend.utils.MessagesLogs;
@@ -21,7 +21,7 @@ import static com.imgpedia.imgpedia_backend.utils.UploadRdfUtil.isValidRdfFile;
 
 @RestController
 @RequestMapping("api/data")
-public class RdfUploaderController implements RdfUploaderApiController {
+public class RdfUploaderController implements RdfUploader {
 
     @Autowired
     private RdfUploadService rdfUploadService;
@@ -49,15 +49,14 @@ public class RdfUploaderController implements RdfUploaderApiController {
             
             CompletableFuture.runAsync(() -> {
                 try {
-                    ImgpediaLogger.info("Starting asynchronous processing of file: " + originalFileName);
+                    ImgpediaLogger.info(MessagesLogs.UPLOADING_STARTED + originalFileName);
                     rdfUploadService.processUploadedFile(file, uploadId, targetFileName);
                 } catch (Exception e) {
-                    ImgpediaLogger.error("Error during async file processing: " + e.getMessage());
+                    ImgpediaLogger.error(MessagesLogs.PROCESSING_ERROR + e.getMessage());
                     rdfUploadService.updateUploadStatus(uploadId, "failed", e.getMessage());
                 }
             });
             
-            // Devolver inmediatamente el ID de carga al cliente
             return ResponseEntity.accepted().body(Map.of(
                 "message", "File upload initiated, processing in background",
                 "uploadId", uploadId,

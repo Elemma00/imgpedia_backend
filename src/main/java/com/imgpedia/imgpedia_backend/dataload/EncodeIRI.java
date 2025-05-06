@@ -6,6 +6,9 @@ import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.riot.system.StreamRDFBase;
 
+/**
+ * A class that encodes IRIs in a Jena Model by replacing certain characters with their percent-encoded equivalents.
+ */
 public class EncodeIRI extends StreamRDFBase {
     private final Model model;
 

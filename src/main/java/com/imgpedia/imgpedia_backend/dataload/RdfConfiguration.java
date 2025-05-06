@@ -26,6 +26,13 @@ import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
+/**
+ * Configuration class for RDF data loading and processing.
+ * This class initializes
+ * the RDF model, processes RDF files from specified directories, and handles compressed files.
+ * It also manages the dataset connection and provides beans for the RDF model and dataset.
+ */
+
 @Configuration
 public class RdfConfiguration {
 

@@ -7,6 +7,12 @@ public class MessagesLogs {
     public static final String QUERY_EXECUTION_FAILED = "Failed to execute the query.";
     public static final String QUERY_TIMEOUT = "The query execution timed out.";
     public static final String QUERY_NO_RESULTS = "The query did not return any results.";
+    public static final String QUERY_DEFAULT_ERROR = "An error occurred while executing the query: ";
+    public static final String QUERY_STOP_ERROR = "An error occurred while stopping the query: ";
+
+    // Query Info Messages
+    public static final String QUERY_EXECUTED_SUCCESS = "Query executed successfully: ";
+    public static final String QUERY_STOPPED = "Query execution stopped successfully: ";
 
     // Upload Errors
     public static final String UPLOAD_FILE_EMPTY = "The uploaded file is empty.";
@@ -43,6 +49,7 @@ public class MessagesLogs {
     public static final String TEMP_FILE_DELETE_WARNING = "Failed to delete temp file: ";
     
     // RDF Upload Service Processing Messages
+    public static final String UPLOADING_STARTED = "Starting asynchronous processing of file: ";
     public static final String PROCESSING_COMPRESSED_FILE = "Processing compressed file: ";
     public static final String PROCESSING_RDF_FILE = "Processing RDF file: ";
     public static final String LOADING_RDF_FILE = "Loading RDF file: ";
@@ -58,4 +65,8 @@ public class MessagesLogs {
     public static final String PROCESSING_FAILED = "Error during processing";
     public static final String PROCESSING_TRIPLES = "Processing triples: ";
     public static final String PROCESSING_ENTRY = "Processing entry ";
+
+
+
+    
 }
