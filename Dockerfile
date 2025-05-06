@@ -8,12 +8,12 @@ COPY ./pom.xml .
 COPY ./libs ./libs
 
 # Install dependencies but not build 
-RUN ./mvnw clean package -Dmaven.test.skip -Dmaven.main.skip -Dspring-boot.repackage.skip && rm -r ./target/
+RUN ./mvnw clean package -Dspring.profiles.active=local -Dmaven.test.skip -Dmaven.main.skip -Dspring-boot.repackage.skip && rm -r ./target/
 
 COPY ./src ./src
 
 #Now build the project
-RUN ./mvnw clean package
+RUN ./mvnw clean package -Dspring.profiles.active=local
 
 FROM amazoncorretto:21.0.7-alpine3.18
 
