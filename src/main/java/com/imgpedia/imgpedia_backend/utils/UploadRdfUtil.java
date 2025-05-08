@@ -77,9 +77,9 @@ public class UploadRdfUtil {
                         deleteDirectory(file);
                     } else {
                         if (file.delete()) {
-                            ImgpediaLogger.info("Archivo residual eliminado: " + file.getAbsolutePath());
+                            ImgpediaLogger.info("Residual file removed: " + file.getAbsolutePath());
                         } else {
-                            ImgpediaLogger.warn("No se pudo eliminar archivo residual: " + file.getAbsolutePath());
+                            ImgpediaLogger.warn("An error occurred removing the residual file: " + file.getAbsolutePath());
                         }
                     }
                 }

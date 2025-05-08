@@ -11,6 +11,10 @@ import org.springframework.web.context.request.WebRequest;
 import com.imgpedia.imgpedia_backend.exceptions.MalformedQueryException;
 import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 
+/**
+ * Global exception handler for the application.
+ * This class handles various exceptions and returns appropriate HTTP responses.
+ */
 @ControllerAdvice
 public class ControllerExceptionHandler {
 

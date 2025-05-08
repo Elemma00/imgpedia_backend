@@ -19,6 +19,10 @@ import com.imgpedia.imgpedia_backend.models.auth.User;
 import com.imgpedia.imgpedia_backend.repository.RoleRepository;
 import com.imgpedia.imgpedia_backend.repository.UserRepository;
 
+/**
+ * Service class for managing user-related operations.
+ * This class implements UserDetailsService to load user-specific data.
+ */
 @Service
 public class UserService implements UserDetailsService {
 
@@ -35,17 +39,17 @@ public class UserService implements UserDetailsService {
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return userRepository.findByUsername(username)
-            .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
+            .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
     }
     
     @Transactional
     public User createUser(String username, String password, String email) {
         if (userRepository.existsByUsername(username)) {
-            throw new RuntimeException("El nombre de usuario ya está en uso");
+            throw new RuntimeException("The username is already in use");
         }
         
         if (userRepository.existsByEmail(email)) {
-            throw new RuntimeException("El email ya está en uso");
+            throw new RuntimeException("Email is already in use");
         }
         
         User user = new User();
@@ -72,7 +76,7 @@ public class UserService implements UserDetailsService {
     @Transactional
     public void addRoleToUser(String username, String roleName) {
         User user = userRepository.findByUsername(username)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+            .orElseThrow(() -> new RuntimeException("User not found"));
         
         Role role = roleRepository.findByName(roleName)
             .orElseGet(() -> {
@@ -87,7 +91,7 @@ public class UserService implements UserDetailsService {
     @Transactional
     public User changePassword(String username, String newPassword) {
         User user = userRepository.findByUsername(username)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + username));
+            .orElseThrow(() -> new RuntimeException("User not found: " + username));
         
         user.setPassword(passwordEncoder.encode(newPassword));
         return userRepository.save(user);
@@ -114,7 +118,7 @@ public class UserService implements UserDetailsService {
     @Transactional
     public void deleteUser(String username) {
         User user = userRepository.findByUsername(username)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + username));
+            .orElseThrow(() -> new RuntimeException("User not found: " + username));
         
         userRepository.delete(user);
     }
@@ -122,14 +126,14 @@ public class UserService implements UserDetailsService {
     @Transactional
     public User updateUserStatus(String username, boolean enabled) {
         User user = userRepository.findByUsername(username)
-            .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + username));
+            .orElseThrow(() -> new RuntimeException("User not found: " + username));
         
         if (!enabled) {
             boolean isAdmin = user.getRoles().stream()
                 .anyMatch(role -> "ADMIN".equals(role.getName()));
             
             if (isAdmin) {
-                throw new RuntimeException("No se puede deshabilitar un usuario con rol de administrador");
+                throw new RuntimeException("Cannot disable this user.");
             }
         }
         

@@ -16,7 +16,7 @@ import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RDFParser;
 import org.apache.jena.riot.system.ErrorHandler;
-import org.apache.jena.tdb2.TDB2Factory;
+import org.apache.jena.tdb1.TDB1Factory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.context.annotation.ApplicationScope;
@@ -46,7 +46,7 @@ public class RdfConfiguration {
     private final RdfLoadTracker loadTracker;
 
     public RdfConfiguration() {
-        this.dataset = TDB2Factory.connectDataset(DB);
+        this.dataset = TDB1Factory.createDataset(DB);
         dataset.begin(ReadWrite.READ);
         ImgpediaLogger.info("Loading RDF model from TDB directory: " + DB);
         this.model = dataset.getDefaultModel();
@@ -96,9 +96,9 @@ public class RdfConfiguration {
     private String[] getRdfDirectories() {
         return new String[] {
             "/nas_mount/imgpedia/resource/wiki", 
-            // "/nas_mount/imgpedia/resource/sim", 
-            "/home/efaundez/sanitized",
             "/nas_mount/imgpedia/resource/img",
+            "/home/efaundez/sanitized",
+            "/nas_mount/imgpedia/resource/sim", 
         };
     }
     private void processDirectory(String directoryPath) {

@@ -32,6 +32,10 @@ import static com.imgpedia.imgpedia_backend.utils.UploadRdfUtil.deleteDirectory;
 
 import jakarta.annotation.PostConstruct;
 
+/**
+ * Service for handling RDF file uploads and processing.
+ * This service manages the upload, processing, and storage of RDF files.
+ */
 @Service
 public class RdfUploadService {
 

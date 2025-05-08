@@ -3,6 +3,10 @@ package com.imgpedia.imgpedia_backend.logger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Custom logger class for the Imgpedia application.
+ * This class provides methods to log messages with additional context about the caller.
+ */
 public class ImgpediaLogger {
 
     private static final Logger logger = LoggerFactory.getLogger(ImgpediaLogger.class);

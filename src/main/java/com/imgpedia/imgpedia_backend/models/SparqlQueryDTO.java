@@ -10,8 +10,8 @@ public class SparqlQueryDTO {
 
     @NotBlank(message = "SPARQL query cannot be empty")
     private String query;
-    
-    // Este atributo no se esta usando actualmente, ya que solo se usa 1 grafo
+
+    // This graph attribute is not used in the current implementation, but it is included for future use.
     private Optional<String> graph = Optional.empty();
     
     @Min(value = 0, message = "Timeout must be greater than or equal to 0")

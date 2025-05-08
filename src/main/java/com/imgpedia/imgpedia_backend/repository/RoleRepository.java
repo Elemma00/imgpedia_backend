@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository;
 
 import com.imgpedia.imgpedia_backend.models.auth.Role;
 
-
 @Repository
 public interface RoleRepository extends JpaRepository<Role, Long> {
     Optional<Role> findByName(String name);

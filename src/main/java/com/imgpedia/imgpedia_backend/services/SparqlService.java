@@ -22,6 +22,10 @@ import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 import com.imgpedia.imgpedia_backend.models.SparqlQueryDTO;
 import com.imgpedia.imgpedia_backend.utils.MessagesLogs;
 
+/**
+ * Service class for executing SPARQL queries on a Jena RDF model.
+ * This class provides methods to execute SELECT queries with optional timeouts.
+ */
 @Service
 public class SparqlService {
 

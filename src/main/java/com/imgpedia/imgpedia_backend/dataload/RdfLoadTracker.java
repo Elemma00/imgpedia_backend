@@ -13,7 +13,7 @@ import java.util.Properties;
 import java.util.Set;
 
 /**
- * Clase que rastrea qué archivos RDF ya han sido cargados para evitar recargas innecesarias.
+ * Class that tracks which RDF files have already been loaded to avoid unnecessary reloads.
  */
 public class RdfLoadTracker {
     private final String trackerFilePath;
@@ -21,9 +21,9 @@ public class RdfLoadTracker {
     private final Properties properties;
     
     /**
-     * Constructor que inicializa el rastreador con un archivo específico.
+     * Constructor that initializes the tracker with a specific file.
      * 
-     * @param trackerFilePath Ruta al archivo que almacena información de rastreo
+     * @param trackerFilePath Path to the file that stores tracking information
      */
     public RdfLoadTracker(String trackerFilePath) {
         this.trackerFilePath = trackerFilePath;
@@ -34,10 +34,10 @@ public class RdfLoadTracker {
     }
     
     /**
-     * Verifica si un archivo ya ha sido cargado previamente.
+     * Checks if a file has already been loaded previously.
      * 
-     * @param file El archivo a verificar
-     * @return true si el archivo ya ha sido cargado, false en caso contrario
+     * @param file The file to check
+     * @return true if the file has already been loaded, false otherwise
      */
     public boolean isFileLoaded(File file) {
         if (file == null || !file.exists()) {
@@ -49,9 +49,9 @@ public class RdfLoadTracker {
     }
     
     /**
-     * Marca un archivo como cargado correctamente.
+     * Marks a file as successfully loaded.
      * 
-     * @param file El archivo que se ha cargado correctamente
+     * @param file The file that has been successfully loaded
      */
     public void markFileAsLoaded(File file) {
         if (file == null || !file.exists()) {
@@ -68,10 +68,10 @@ public class RdfLoadTracker {
     }
     
     /**
-     * Elimina un archivo de la lista de archivos cargados.
-     * Útil si se necesita volver a cargar un archivo específico.
+     * Removes a file from the list of loaded files.
+     * Useful if a specific file needs to be reloaded.
      * 
-     * @param file El archivo a eliminar del rastreo
+     * @param file The file to remove from tracking
      */
     public void untrackFile(File file) {
         if (file == null) {
@@ -86,19 +86,19 @@ public class RdfLoadTracker {
     }
     
     /**
-     * Obtiene la lista de archivos que ya han sido cargados.
+     * Gets the list of files that have already been loaded.
      * 
-     * @return Un conjunto con las claves de los archivos cargados
+     * @return A set with the keys of loaded files
      */
     public Set<String> getLoadedFiles() {
         return new HashSet<>(loadedFiles);
     }
     
     /**
-     * Genera una clave única para un archivo basada en su ruta y última modificación.
+     * Generates a unique key for a file based on its path and last modification.
      * 
-     * @param file El archivo para el que generar la clave
-     * @return Una clave única que representa el archivo
+     * @param file The file for which to generate the key
+     * @return A unique key representing the file
      */
     private String getFileKey(File file) {
         try {
@@ -106,10 +106,10 @@ public class RdfLoadTracker {
             long lastModified = file.lastModified();
             long fileSize = file.length();
             
-            // Crear una clave única basada en la ruta y metadatos del archivo
+            // Create a unique key based on the file path and metadata
             String rawKey = filePath + "_" + lastModified + "_" + fileSize;
             
-            // Opcional: crear un hash más compacto de la clave
+            // Optional: create a more compact hash of the key
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(rawKey.getBytes());
             StringBuilder hexString = new StringBuilder();
@@ -122,18 +122,18 @@ public class RdfLoadTracker {
             
             return filePath + "_" + hexString.substring(0, 8);
         } catch (Exception e) {
-            // En caso de error, usar solo la ruta del archivo
+            // In case of error, use only the file path
             return file.getAbsolutePath();
         }
     }
     
     /**
-     * Carga la información de archivos previamente procesados.
+     * Loads information about previously processed files.
      */
     private void loadTrackedFiles() {
         File trackerFile = new File(trackerFilePath);
         
-        // Asegurarse de que el directorio exista
+        // Ensure the directory exists
         Path directory = Paths.get(trackerFile.getParent());
         try {
             if (!Files.exists(directory)) {
@@ -143,7 +143,7 @@ public class RdfLoadTracker {
             System.err.println("Error creating directory for tracker file: " + e.getMessage());
         }
         
-        // Cargar propiedades si el archivo existe
+        // Load properties if the file exists
         if (trackerFile.exists()) {
             try (FileInputStream fis = new FileInputStream(trackerFile)) {
                 properties.load(fis);
@@ -156,7 +156,7 @@ public class RdfLoadTracker {
     }
     
     /**
-     * Guarda la información de archivos procesados.
+     * Saves information about processed files.
      */
     private void saveTrackedFiles() {
         try (FileOutputStream fos = new FileOutputStream(trackerFilePath)) {
