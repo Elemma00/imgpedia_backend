@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.imgpedia.imgpedia_backend.configuration.jwt.JwtTokenProvider;
 import com.imgpedia.imgpedia_backend.controllers.interfaces.Auth;
+import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 import com.imgpedia.imgpedia_backend.models.auth.AuthRequest;
 import com.imgpedia.imgpedia_backend.models.auth.AuthResponse;
 
@@ -45,9 +46,10 @@ public class AuthController implements Auth {
                 .collect(Collectors.toList());
             
             String token = jwtTokenProvider.createToken(loginRequest.getUsername(), roles);
-            
+            ImgpediaLogger.info("User " + loginRequest.getUsername() + " logged in successfully");
             return ResponseEntity.ok(new AuthResponse(token, loginRequest.getUsername()));
         } catch (Exception e) {
+            ImgpediaLogger.error("Authentication failed for user " + loginRequest.getUsername() + ": " + e.getMessage());
             return ResponseEntity.badRequest()
                 .body(Map.of("error", "Authentication failed: " + e.getMessage()));
         }
