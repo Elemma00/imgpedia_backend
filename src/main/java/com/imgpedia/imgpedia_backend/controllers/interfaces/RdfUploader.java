@@ -25,6 +25,16 @@ public interface RdfUploader {
     @PostMapping("/upload")
     ResponseEntity<?> uploadRdfData(@RequestParam("file") MultipartFile file);
     
+     /**
+     * Uploads multiple RDF files simultaneously.
+     * @param files Array of RDF files to be uploaded.
+     * @return A ResponseEntity containing the result of the multiple upload operation.
+     */
+    @Operation(summary = "Upload multiple RDF files")
+    @PostMapping("/upload-multiple")
+    ResponseEntity<?> uploadMultipleRdfData(@RequestParam("files") MultipartFile[] files);
+    
+
     /**
      * Gets the status of an RDF upload.
      * @param uploadId The ID of the upload to check the status of.
@@ -33,4 +43,22 @@ public interface RdfUploader {
     @Operation(summary = "Get status of RDF upload")
     @GetMapping("/status")
     ResponseEntity<?> getUploadStatus(@RequestParam("uploadId") String uploadId);
+
+
+     /**
+     * Gets the status of multiple RDF uploads.
+     * @param uploadIds Comma-separated list of upload IDs to check.
+     * @return A ResponseEntity containing the status of all requested uploads.
+     */
+    @Operation(summary = "Get status of multiple RDF uploads")
+    @GetMapping("/status-batch")
+    ResponseEntity<?> getBatchUploadStatus(@RequestParam("uploadIds") String uploadIds);
+    
+    /**
+     * Gets the status of all active RDF uploads.
+     * @return A ResponseEntity containing the status of all current uploads.
+     */
+    @Operation(summary = "Get status of all RDF uploads")
+    @GetMapping("/status-all")
+    ResponseEntity<?> getAllUploadStatuses();
 }

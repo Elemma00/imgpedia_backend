@@ -57,6 +57,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/sparql/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/data/status").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/data/upload").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/data/upload-multiple").authenticated()          
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().permitAll()
             )

@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,6 +22,7 @@ import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RDFParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -425,6 +428,63 @@ public class RdfUploadService {
         }
         
         uploadStatus.put(uploadId, statusInfo);
+    }
+
+    /**
+     * Gets the status of all uploads currently tracked by the service.
+     * @return A map containing all upload statuses categorized by their state.
+     */
+    public Map<String, Object> getAllUploadStatuses() {
+        Map<String, Object> allStatuses = new HashMap<>();
+        
+        Map<String, Object> activeUploads = new HashMap<>();
+        Map<String, Object> completedUploads = new HashMap<>();
+        Map<String, Object> failedUploads = new HashMap<>();
+        
+        uploadStatus.forEach((id, status) -> {
+            String statusValue = (String) status.get("status");
+            
+            if ("processing".equals(statusValue)) {
+                activeUploads.put(id, status);
+            } else if ("completed".equals(statusValue)) {
+                completedUploads.put(id, status);
+            } else if ("failed".equals(statusValue)) {
+                failedUploads.put(id, status);
+            }
+        });
+        
+        allStatuses.put("total", uploadStatus.size());
+        allStatuses.put("active", activeUploads);
+        allStatuses.put("completed", completedUploads);
+        allStatuses.put("failed", failedUploads);
+        
+        return allStatuses;
+    }
+
+    @Scheduled(fixedRate = 3600000)
+    public void cleanupOldUploadStatuses() {
+        long now = System.currentTimeMillis();
+        long maxAge = 24 * 60 * 60 * 1000; 
+        List<String> idsToRemove = new ArrayList<>();
+        
+        uploadStatus.forEach((id, status) -> {
+            String statusValue = (String) status.get("status");
+            
+            if ("completed".equals(statusValue) || "failed".equals(statusValue)) {
+                Long lastUpdated = (Long) status.get("lastUpdated");
+                if (lastUpdated != null && (now - lastUpdated > maxAge)) {
+                    idsToRemove.add(id);
+                }
+            }
+        });
+        
+        for (String id : idsToRemove) {
+            uploadStatus.remove(id);
+        }
+        
+        if (!idsToRemove.isEmpty()) {
+            ImgpediaLogger.info("Cleaned up " + idsToRemove.size() + " old upload status records");
+        }
     }
     
     public Map<String, Object> getUploadStatusById(String uploadId) {

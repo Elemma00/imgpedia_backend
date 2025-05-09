@@ -65,7 +65,8 @@ public class MessagesLogs {
     public static final String PROCESSING_FAILED = "Error during processing";
     public static final String PROCESSING_TRIPLES = "Processing triples: ";
     public static final String PROCESSING_ENTRY = "Processing entry ";
-
+    public static final String MULTIPLE_UPLOADS_STARTED = "Multiple file uploads initiated: ";
+    public static final String BATCH_PROCESSING = "Processing batch of files: ";
 
 
     
