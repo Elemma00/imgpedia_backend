@@ -16,7 +16,7 @@ import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RDFParser;
 import org.apache.jena.riot.system.ErrorHandler;
-import org.apache.jena.tdb1.TDB1Factory;
+import org.apache.jena.tdb2.TDB2Factory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.context.annotation.ApplicationScope;
@@ -46,7 +46,7 @@ public class RdfConfiguration {
     private final RdfLoadTracker loadTracker;
 
     public RdfConfiguration() {
-        this.dataset = TDB1Factory.createDataset(DB);
+        this.dataset = TDB2Factory.connectDataset(DB);
         dataset.begin(ReadWrite.READ);
         ImgpediaLogger.info("Loading RDF model from TDB directory: " + DB);
         this.model = dataset.getDefaultModel();
@@ -75,7 +75,10 @@ public class RdfConfiguration {
             
             try {
                 for (String directoryPath : directories) {
+                    dataset.begin(ReadWrite.WRITE);
                     processDirectory(directoryPath);
+                    dataset.commit();
+                    dataset.end();
                 }
                 ImgpediaLogger.info("RDF data loaded successfully");
             } catch (Exception e) {
@@ -95,10 +98,10 @@ public class RdfConfiguration {
 
     private String[] getRdfDirectories() {
         return new String[] {
-            "/nas_mount/imgpedia/resource/wiki", 
-            "/nas_mount/imgpedia/resource/img",
-            "/home/efaundez/sanitized",
             "/nas_mount/imgpedia/resource/sim", 
+            "/nas_mount/imgpedia/resource/img",
+            "/nas_mount/imgpedia/resource/wiki", 
+            "/home/efaundez/sanitized",
         };
     }
     private void processDirectory(String directoryPath) {
@@ -107,14 +110,11 @@ public class RdfConfiguration {
             File[] files = directory.listFiles((dir, name) -> name.endsWith(".ttl") || name.endsWith(".rdf") || name.endsWith(".tar.gz"));
             if (files != null) {
                 for (File file : files) {
-                    dataset.begin(ReadWrite.WRITE);
                     if (file.getName().endsWith(".tar.gz")) {
                         processCompressedFile(file);
                     } else {
                         processFile(file);
-                    }
-                    dataset.commit();
-                    dataset.end();
+                    }    
                 }
             }
         } else {
