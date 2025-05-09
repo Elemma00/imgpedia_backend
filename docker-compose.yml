@@ -8,13 +8,15 @@ services:
     restart: unless-stopped
     pull_policy: always
     environment:
-      - TDB_PATH=/imgpedia_tdb
-      - JAVA_OPTS=-Xmx8g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:ParallelGCThreads=4
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/imgpedia_users
-      - SPRING_DATASOURCE_USERNAME=imgpedia
-      - SPRING_DATASOURCE_PASSWORD=imgpedia_secure_password
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update      
-
+      - TDB_PATH=${TDB_PATH}
+      - JAVA_OPTS=${JAVA_OPTS}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=${SPRING_JPA_HIBERNATE_DDL_AUTO}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+ 
     volumes:
       - /home/efaundez:/home/efaundez
       - /NAS/sferrada/imgpedia/imgpedia_tdb:/imgpedia_tdb
@@ -36,9 +38,9 @@ services:
     image: postgres:14-alpine
     container_name: imgpedia_db
     environment:
-      - POSTGRES_DB=imgpedia_users
-      - POSTGRES_USER=imgpedia
-      - POSTGRES_PASSWORD=imgpedia_secure_password
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
