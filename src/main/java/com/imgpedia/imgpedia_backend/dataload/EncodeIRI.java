@@ -35,6 +35,9 @@ public class EncodeIRI extends StreamRDFBase {
         return node;
     }
 
+    /**This method use percent encoding to fix 
+     * the issue with special characters in URIs.
+     */
     private String normalizeUri(String uri) {
         return uri.replace("\"", "%22")
                   .replace("[", "%5B")

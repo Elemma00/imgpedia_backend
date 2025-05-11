@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -39,12 +41,16 @@ public class RdfConfiguration {
     private static final String DB = System.getenv("TDB_PATH") != null ? 
     System.getenv("TDB_PATH") : 
     System.getProperty("user.dir") + File.separator + "imgpedia_tdb";
+    private static final String TRACKER_FILE = DB + File.separator + "loaded_files.properties";
+
     private final Dataset dataset;
     private final Model model;
-
-    private static final String TRACKER_FILE = DB + File.separator + "loaded_files.properties";
     private final RdfLoadTracker loadTracker;
 
+    /**
+     * Constructor for RdfConfiguration.
+     * Initializes the dataset and model, and sets up the load tracker.
+     */
     public RdfConfiguration() {
         this.dataset = TDB2Factory.connectDataset(DB);
         dataset.begin(ReadWrite.READ);
@@ -54,6 +60,10 @@ public class RdfConfiguration {
         this.loadTracker = new RdfLoadTracker(TRACKER_FILE);
     }
 
+    /**
+     * Initializes the RDF model by loading data from specified directories.
+     * It processes files in batches and handles compressed files.
+     */
     @PostConstruct
     public void initRdfModel() {
         ImgpediaLogger.info("Initializing RDF model...");
@@ -63,39 +73,36 @@ public class RdfConfiguration {
         }
         
         try {
-
             dataset.begin(ReadWrite.READ);
             if(model.isEmpty()){
                 ImgpediaLogger.warn("Default model is empty");
             }
             dataset.end();
 
-
             String[] directories = getRdfDirectories();
             
-            try {
-                for (String directoryPath : directories) {
-                    dataset.begin(ReadWrite.WRITE);
-                    processDirectory(directoryPath);
-                    dataset.commit();
-                    dataset.end();
-                }
-                ImgpediaLogger.info("RDF data loaded successfully");
-            } catch (Exception e) {
-                if (dataset.isInTransaction()) {
-                    dataset.abort(); 
-                }
-            } finally {
-                if (dataset.isInTransaction()) {
-                    dataset.end(); 
+            for (String directoryPath : directories) {
+                try {
+                    processDirectory(directoryPath, 100); // Batch of 100 files
+                    ImgpediaLogger.info("Completed processing directory: " + directoryPath);
+                } catch (Exception e) {
+                    ImgpediaLogger.error("Error processing directory " + directoryPath + ": " + e.getMessage());
                 }
             }
+            
+            ImgpediaLogger.info("RDF data loading completed");
         } catch (Exception e) {
+            ImgpediaLogger.error("Critical error during RDF initialization: " + e.getMessage());
             throw new RuntimeException("Error during RDF initialization", e);
+        } finally {
+            dataset.close();
         }
     }
 
-
+    /**
+     * Returns an array of directory paths to process RDF files.
+     * @return Array of directory paths
+     */
     private String[] getRdfDirectories() {
         return new String[] {
             "/nas_mount/imgpedia/resource/sim", 
@@ -104,28 +111,150 @@ public class RdfConfiguration {
             "/home/efaundez/sanitized",
         };
     }
-    private void processDirectory(String directoryPath) {
-        File directory = new File(directoryPath);
-        if (directory.exists() && directory.isDirectory()) {
-            File[] files = directory.listFiles((dir, name) -> name.endsWith(".ttl") || name.endsWith(".rdf") || name.endsWith(".tar.gz"));
-            if (files != null) {
-                for (File file : files) {
-                    if (file.getName().endsWith(".tar.gz")) {
-                        processCompressedFile(file);
-                    } else {
-                        processFile(file);
-                    }    
-                }
+
+    /**
+     * Processes RDF files in the specified directory.
+     * It handles both compressed and uncompressed files, and manages memory usage.
+     * @param directoryPath Path to the directory containing RDF files
+     * @param batchSize Size of the batch for processing files
+     */
+    private void processDirectory(String directoryPath, int batchSize) {
+    File directory = new File(directoryPath);
+    if (!directory.exists() || !directory.isDirectory()) {
+        ImgpediaLogger.error("Directory not valid: " + directoryPath);
+        return;
+    }
+    
+    File[] files = directory.listFiles((dir, name) -> 
+        name.endsWith(".ttl") || name.endsWith(".rdf") || name.endsWith(".tar.gz"));
+    
+    if (files == null || files.length == 0) {
+        ImgpediaLogger.info("No applicable files found in directory: " + directoryPath);
+        return;
+    }
+    
+    ImgpediaLogger.info("Found " + files.length + " files to process in " + directoryPath);
+
+    List<File> successfulBatch = new ArrayList<>();
+    int totalProcessed = 0;
+    int totalSuccess = 0;
+    
+    dataset.begin(ReadWrite.WRITE);
+    ImgpediaLogger.info("Started transaction for batch processing");
+    
+    for (File file : files) {
+        if (loadTracker.isFileLoaded(file)) {
+            ImgpediaLogger.info("Skipping already loaded file: " + file.getName());
+            totalProcessed++;
+            continue;
+        }
+        
+        if (checkAvailableMemory()) {
+            ImgpediaLogger.warn("Low memory detected, performing garbage collection");
+            System.gc();
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-        } else {
-            ImgpediaLogger.error("Directory not valid: " + directoryPath);
+        }
+        
+        boolean success = false;
+        
+        try {
+            if (file.getName().endsWith(".tar.gz")) {
+                success = processCompressedFile(file);
+            } else {
+                success = processFile(file);
+            }
+            
+            if (success) {
+                successfulBatch.add(file);
+                ImgpediaLogger.info("Successfully processed file: " + file.getName() + " (pending commit)");
+            } else {
+                ImgpediaLogger.error("Failed to process file: " + file.getName());
+            }
+        } catch (OutOfMemoryError e) {
+            ImgpediaLogger.error("Out of memory while processing " + file.getName() + ". Skipping.");
+            
+            if (!successfulBatch.isEmpty()) {
+                commitBatchAndMarkAsLoaded(successfulBatch);
+                totalSuccess += successfulBatch.size();
+                successfulBatch.clear();
+                
+                dataset.begin(ReadWrite.WRITE);
+            }
+            
+            System.gc();
+            try {
+                Thread.sleep(5000); 
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+        } catch (Exception e) {
+            ImgpediaLogger.error("Error processing file " + file.getName() + ": " + e.getMessage());
+        }
+        
+        totalProcessed++;
+        
+        if (successfulBatch.size() >= batchSize) {
+            ImgpediaLogger.info("Reached batch size of " + batchSize + " files, committing...");
+            commitBatchAndMarkAsLoaded(successfulBatch);
+            totalSuccess += successfulBatch.size();
+            successfulBatch.clear();
+            dataset.begin(ReadWrite.WRITE);
+        }
+    }
+    
+    if (!successfulBatch.isEmpty()) {
+        ImgpediaLogger.info("Processing final batch of " + successfulBatch.size() + " files");
+        commitBatchAndMarkAsLoaded(successfulBatch);
+        totalSuccess += successfulBatch.size();
+    } else if (dataset.isInTransaction()) {
+        dataset.end();
+    }
+    
+    ImgpediaLogger.info("Directory processing complete: " + directoryPath + 
+        " - Successfully processed " + totalSuccess + "/" + totalProcessed + 
+        " files out of " + files.length + " total files");
+    }   
+
+    /**
+     * Commits the batch of files to the dataset and marks them as loaded.
+     * @param batch List of files to commit
+     */
+    private void commitBatchAndMarkAsLoaded(List<File> batch) {
+        if (batch.isEmpty()) {
+            return;
+        }
+        
+        try {
+            ImgpediaLogger.info("Committing batch of " + batch.size() + " files...");
+            dataset.commit();
+            
+            // Only mark files as loaded after successful commit
+            for (File file : batch) {
+                loadTracker.markFileAsLoaded(file);
+                ImgpediaLogger.info("Marked file as loaded after commit: " + file.getName());
+            }
+            
+            ImgpediaLogger.info("Batch committed successfully: " + batch.size() + " files");
+        } catch (Exception e) {
+            ImgpediaLogger.error("Error during batch commit: " + e.getMessage());
+            if (dataset.isInTransaction()) {
+                dataset.abort();
+            }
+        } finally {
+            if (dataset.isInTransaction()) {
+                dataset.end();
+            }
+            
+           // Help garbage collection
+            System.gc();
         }
     }
 
-    private void processFile(File file) {
-        if (loadTracker.isFileLoaded(file)) {
-            return;
-        }
+    private boolean processFile(File file) {
         try (InputStream inputStream = new FileInputStream(file)) {
             ImgpediaLogger.info("Loading file: " + file.getAbsolutePath());
 
@@ -135,21 +264,24 @@ public class RdfConfiguration {
                     .errorHandler(createErrorHandler())
                     .parse(new EncodeIRI(model));
             
-            loadTracker.markFileAsLoaded(file);
-            ImgpediaLogger.info("Successfully loaded");
-          
+            ImgpediaLogger.info("Successfully loaded file content: " + file.getName() + " (pending commit)");
+            return true;
         } catch (Exception e) {
             ImgpediaLogger.error("Error loading file: " + file.getAbsolutePath() + " - " + e.getMessage());
+            return false;
         }
     }
 
-    private void processCompressedFile(File compressedFile) {
-        if (loadTracker.isFileLoaded(compressedFile)) {
-            ImgpediaLogger.info("Skipping already loaded compressed file: " + compressedFile.getAbsolutePath());
-            return;
-        }
+    /**
+     * Processes a compressed file (tar.gz) and extracts its contents.
+     * It handles each entry in the compressed file and processes them individually.
+     * @param compressedFile Path to the compressed file
+     * @return true if successful, false otherwise
+     */
+    private boolean processCompressedFile(File compressedFile) {
         ImgpediaLogger.info("Processing compressed file: " + compressedFile.getAbsolutePath());
-        boolean overallSuccess = true;
+        int entriesProcessed = 0;
+        int entriesSuccessful = 0;
         
         File tempDir = new File("/imgpedia/temp_extraction");
         if (!tempDir.exists()) {
@@ -162,12 +294,12 @@ public class RdfConfiguration {
                 ImgpediaLogger.info("Created temp directory: " + tempDir.getAbsolutePath());
             }
         }
-        
-        ImgpediaLogger.info("Using temp directory: " + tempDir.getAbsolutePath());
     
+        ImgpediaLogger.info("Using temp directory: " + tempDir.getAbsolutePath());
+
         try (FileInputStream fileInputStream = new FileInputStream(compressedFile);
-             GzipCompressorInputStream gzipInputStream = new GzipCompressorInputStream(fileInputStream);
-             TarArchiveInputStream tarInput = new TarArchiveInputStream(gzipInputStream)) {
+            GzipCompressorInputStream gzipInputStream = new GzipCompressorInputStream(fileInputStream);
+            TarArchiveInputStream tarInput = new TarArchiveInputStream(gzipInputStream)) {
             
             TarArchiveEntry currentEntry;
             
@@ -175,10 +307,10 @@ public class RdfConfiguration {
                 if (currentEntry.isDirectory() || !currentEntry.getName().endsWith(".ttl")) {
                     continue;
                 }
-    
+
                 String entryName = currentEntry.getName();
                 ImgpediaLogger.info("Processing tar entry: " + entryName);
-              
+            
                 String sanitizedName = entryName.replaceAll("[^a-zA-Z0-9.-]", "_");
                 File tempFile = new File(tempDir, "tarentry_" + sanitizedName);
                 
@@ -186,9 +318,10 @@ public class RdfConfiguration {
                 
                 if (!tempDir.canWrite()) {
                     ImgpediaLogger.error("No write permission for directory: " + tempDir.getAbsolutePath());
-                    overallSuccess = false;
-                    continue;
+                    return false;
                 }
+                
+                boolean extractedSuccessfully = false;
                 
                 try (FileOutputStream fos = new FileOutputStream(tempFile)) {
                     byte[] buffer = new byte[8192]; 
@@ -198,49 +331,53 @@ public class RdfConfiguration {
                     while ((bytesRead = tarInput.read(buffer)) != -1) {
                         fos.write(buffer, 0, bytesRead);
                         totalBytes += bytesRead;
-              
+            
                         if (bytesRead < buffer.length) {
                             break;
                         }
                     }
                     
                     ImgpediaLogger.info("Wrote " + totalBytes + " bytes to temp file: " + tempFile.getAbsolutePath());
-                
+                    extractedSuccessfully = true;
+                } catch (Exception e) {
+                    ImgpediaLogger.error("Failed to extract entry to temp file: " + e.getMessage());
                 }
                 
-     
-                boolean entrySuccess = processTemporaryFile(tempFile, entryName);
-                if (!entrySuccess) {
-                    overallSuccess = false;
-                    ImgpediaLogger.error("Failed to process entry: " + entryName);
-                }
+                entriesProcessed++;
                 
-          
+                if (extractedSuccessfully) {
+                    try {
+                        boolean entrySuccess = processTemporaryFile(tempFile, entryName);
+                        if (entrySuccess) {
+                            entriesSuccessful++;
+                        }
+                    } catch (Exception e) {
+                        ImgpediaLogger.error("Error processing temp file: " + e.getMessage());
+                    }
+                }
+
                 if (!tempFile.delete()) {
                     ImgpediaLogger.error("Failed to delete temp file: " + tempFile.getAbsolutePath());
+                    tempFile.deleteOnExit();
                 }
-          
-                System.gc();
+        
+                if (entriesProcessed % 5 == 0) {
+                    System.gc();
+                }
             }
-    
+
         } catch (Exception e) {
-            overallSuccess = false;
             ImgpediaLogger.error("Error processing compressed file: " + compressedFile.getAbsolutePath() + " - " + e.getMessage());
             e.printStackTrace();
         }
-    
-        if (overallSuccess) {
-            loadTracker.markFileAsLoaded(compressedFile);
-            ImgpediaLogger.info("Successfully processed compressed file: " + compressedFile.getAbsolutePath());
-        } else {
-            ImgpediaLogger.error("Failed to process compressed file: " + compressedFile.getAbsolutePath());
-        }
+
+        ImgpediaLogger.info("Processed " + entriesSuccessful + "/" + entriesProcessed + 
+            " entries from compressed file: " + compressedFile.getName());
+            
+        return entriesSuccessful > 0;
     }
 
     private boolean processTemporaryFile(File tempFile, String originalName) {
-        dataset.begin(ReadWrite.WRITE);
-        boolean success = false;
-        
         try (InputStream inputStream = new FileInputStream(tempFile)) {
             ImgpediaLogger.info("Loading entry from temp file: " + originalName);
         
@@ -252,8 +389,10 @@ public class RdfConfiguration {
                     .errorHandler(createErrorHandler())
                     .parse(new EncodeIRI(tempModel));
                     
-            int batchSize = 10000;
+            // Larger batch size for better performance
+            int batchSize = 50000;
             int statementsAdded = 0;
+            long totalStatements = tempModel.size();
             
             StmtIterator stmtIter = tempModel.listStatements();
             while (stmtIter.hasNext()) {
@@ -261,30 +400,46 @@ public class RdfConfiguration {
                     model.add(stmtIter.next());
                     statementsAdded++;
                 }
-                
-                if (statementsAdded % 100000 == 0) {
-                    ImgpediaLogger.info("Added " + statementsAdded + " statements from " + originalName);
+        
+                if (statementsAdded % 500000 == 0) {
+                    ImgpediaLogger.info("Added " + statementsAdded + "/" + totalStatements + 
+                        " statements from " + originalName);
+                    // Allow other operations to proceed
+                    Thread.yield();
                 }
             }
             
-            dataset.commit();
-            success = true;
-            ImgpediaLogger.info("Successfully loaded entry: " + originalName + " (" + statementsAdded + " statements)");
+            ImgpediaLogger.info("Successfully loaded entry: " + originalName + " (" + statementsAdded + " statements) (pending commit)");
+            
+            // Help garbage collection
+            tempModel = null;
+            return true;
         } catch (Exception e) {
             ImgpediaLogger.error("Error loading entry from temp file: " + originalName + " - " + e.getMessage());
-            if (dataset.isInTransaction()) {
-                dataset.abort();
-            }
-        } finally {
-            if (dataset.isInTransaction()) {
-                dataset.end();
-            }
+            return false;
         }
+    }
+    /**
+     * Checks if the available memory is below a certain threshold.
+     * @return true if memory usage exceeds the threshold, false otherwise
+     */
+    private boolean checkAvailableMemory() {
+        Runtime runtime = Runtime.getRuntime();
+        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+        long maxMemory = runtime.maxMemory();
+        double memoryUsageRatio = (double) usedMemory / maxMemory;
         
-        return success;
+        return memoryUsageRatio > 0.8; // 80% threshold
     }
 
-   
+    /**
+     * Creates an error handler for RDF parsing.
+     * @return ErrorHandler instance
+     * 
+     * OBS: This should have a logger to log errors
+     * and warnings, but for now it does nothing.
+     * This is intendent to avoid flooding the logs with errors
+     */
     public ErrorHandler createErrorHandler() {
         return new ErrorHandler() {
             @Override
@@ -301,6 +456,10 @@ public class RdfConfiguration {
         };
     }
 
+    /**
+     * Closes the dataset connection and releases resources.
+     * This method is called when the application context is destroyed.
+     */
     @PreDestroy
     public void closeDataset() {
         if (dataset != null) {
