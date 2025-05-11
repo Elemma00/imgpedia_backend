@@ -33,6 +33,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    cpu_shares: 4096   
 
   db:
     image: postgres:14-alpine
