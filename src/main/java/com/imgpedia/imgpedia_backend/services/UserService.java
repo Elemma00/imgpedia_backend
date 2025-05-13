@@ -47,43 +47,53 @@ public class UserService implements UserDetailsService {
         if (userRepository.existsByUsername(username)) {
             throw new RuntimeException("The username is already in use");
         }
-        
+
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("Email is already in use");
         }
-        
+
+        // No permitir crear usuarios con nombre "superadmin" ni con rol SUPERADMIN
+        if ("superadmin".equalsIgnoreCase(username)) {
+            throw new RuntimeException("Cannot create user with reserved username 'superadmin'");
+        }
+
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
         user.setEmail(email);
-        
+
         Role userRole = roleRepository.findByName("USER")
             .orElseGet(() -> {
                 Role newRole = new Role("USER");
                 return roleRepository.save(newRole);
             });
-        
+
         user.addRole(userRole);
-        
+
         return userRepository.save(user);
     }
+
     
     @Transactional
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
     
-    @Transactional
+   @Transactional
     public void addRoleToUser(String username, String roleName) {
+        if ("SUPERADMIN".equalsIgnoreCase(roleName)) {
+            throw new RuntimeException("Cannot assign SUPERADMIN role");
+        }
+
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         Role role = roleRepository.findByName(roleName)
             .orElseGet(() -> {
                 Role newRole = new Role(roleName);
                 return roleRepository.save(newRole);
             });
-        
+
         user.addRole(role);
         userRepository.save(user);
     }
@@ -127,17 +137,34 @@ public class UserService implements UserDetailsService {
     public User updateUserStatus(String username, boolean enabled) {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new RuntimeException("User not found: " + username));
-        
-        if (!enabled) {
-            boolean isAdmin = user.getRoles().stream()
-                .anyMatch(role -> "ADMIN".equals(role.getName()));
-            
-            if (isAdmin) {
-                throw new RuntimeException("Cannot disable this user.");
-            }
+
+        boolean isSuperAdmin = user.getRoles().stream()
+            .anyMatch(role -> "SUPERADMIN".equals(role.getName()));
+        if (isSuperAdmin) {
+            throw new RuntimeException("SUPERADMIN users cannot be disabled");
         }
-        
+
+        boolean isTargetAdmin = user.getRoles().stream()
+            .anyMatch(role -> "ADMIN".equals(role.getName()));
+        if (isTargetAdmin && !currentUserHasRole("SUPERADMIN")) {
+            throw new RuntimeException("Only SUPERADMIN can disable ADMIN users");
+        }
+        boolean isTargetUser = user.getRoles().stream()
+            .anyMatch(role -> "USER".equals(role.getName()));
+        if (!isTargetAdmin && !isTargetUser) {
+            throw new RuntimeException("Invalid target user role");
+        }
+        if (currentUserHasRole("ADMIN") && !currentUserHasRole("SUPERADMIN") && !isTargetUser) {
+            throw new RuntimeException("ADMIN can only disable USER accounts");
+        }
+
         user.setEnabled(enabled);
         return userRepository.save(user);
+    }
+
+    private boolean currentUserHasRole(String roleName) {
+        return org.springframework.security.core.context.SecurityContextHolder.getContext()
+            .getAuthentication().getAuthorities().stream()
+            .anyMatch(auth -> auth.getAuthority().equals("ROLE_" + roleName));
     }
 }

@@ -10,12 +10,14 @@ import java.util.concurrent.CompletableFuture;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.imgpedia.imgpedia_backend.controllers.interfaces.RdfUploader;
 import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
+import com.imgpedia.imgpedia_backend.models.auth.User;
 import com.imgpedia.imgpedia_backend.services.RdfUploadService;
 import com.imgpedia.imgpedia_backend.utils.MessagesLogs;
 import static com.imgpedia.imgpedia_backend.utils.UploadRdfUtil.getFileExtension;
@@ -28,25 +30,33 @@ public class RdfUploaderController implements RdfUploader {
     @Autowired
     private RdfUploadService rdfUploadService;
 
-    @Override
+   @Override
     public ResponseEntity<?> uploadRdfData(MultipartFile file) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = rdfUploadService.getUserService().findByUsername(username)
+            .orElse(null);
+        if (user == null || !user.isEnabled()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "Your account is disabled and cannot upload files"));
+        }
+
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(MessagesLogs.UPLOAD_FILE_EMPTY);
         }
 
         String originalFileName = file.getOriginalFilename();
         String fileExtension = getFileExtension(originalFileName);
-        
+
         if (!isValidRdfFile(fileExtension)) {
             return ResponseEntity.badRequest().body(MessagesLogs.UPLOAD_FILE_NOT_SUPPORTED);
         }
 
         try {
-            String uploadId = UUID.randomUUID().toString();
+            String uploadId = java.util.UUID.randomUUID().toString();
             String targetFileName = uploadId + "_" + originalFileName;
-            
+
             rdfUploadService.initializeUpload(uploadId, originalFileName);
-            
+
             CompletableFuture.runAsync(() -> {
                 try {
                     ImgpediaLogger.info(MessagesLogs.UPLOADING_STARTED + originalFileName);
@@ -56,59 +66,67 @@ public class RdfUploaderController implements RdfUploader {
                     rdfUploadService.updateUploadStatus(uploadId, "failed", e.getMessage());
                 }
             });
-            
+
             return ResponseEntity.accepted().body(Map.of(
                 "message", "File upload initiated, processing in background",
                 "uploadId", uploadId,
                 "status", "processing"
             ));
-            
+
         } catch (Exception e) {
             ImgpediaLogger.error(e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(e.getMessage());
         }
     }
-    
+
     @Override
     public ResponseEntity<?> uploadMultipleRdfData(MultipartFile[] files) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = rdfUploadService.getUserService().findByUsername(username)
+            .orElse(null);
+        if (user == null || !user.isEnabled()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "Your account is disabled and cannot upload files"));
+        }
+
         if (files == null || files.length == 0) {
             return ResponseEntity.badRequest().body(MessagesLogs.UPLOAD_FILE_EMPTY);
         }
-        
+
         List<Map<String, Object>> results = new ArrayList<>();
-        
+
         for (MultipartFile file : files) {
             Map<String, Object> fileResult = new HashMap<>();
             fileResult.put("fileName", file.getOriginalFilename());
-            
+
             if (file.isEmpty()) {
                 fileResult.put("status", "rejected");
                 fileResult.put("reason", MessagesLogs.UPLOAD_FILE_EMPTY);
                 results.add(fileResult);
                 continue;
             }
-            
+
             String originalFileName = file.getOriginalFilename();
             String fileExtension = getFileExtension(originalFileName);
-            
+
             if (!isValidRdfFile(fileExtension)) {
                 fileResult.put("status", "rejected");
                 fileResult.put("reason", MessagesLogs.UPLOAD_FILE_NOT_SUPPORTED);
                 results.add(fileResult);
                 continue;
             }
-            
+
             try {
-                String uploadId = UUID.randomUUID().toString();
+                String uploadId = java.util.UUID.randomUUID().toString();
                 String targetFileName = uploadId + "_" + originalFileName;
-                
+
                 rdfUploadService.initializeUpload(uploadId, originalFileName);
-                
+
                 fileResult.put("status", "processing");
                 fileResult.put("uploadId", uploadId);
                 results.add(fileResult);
-                
+
                 CompletableFuture.runAsync(() -> {
                     try {
                         ImgpediaLogger.info(MessagesLogs.UPLOADING_STARTED + originalFileName);
@@ -118,7 +136,7 @@ public class RdfUploaderController implements RdfUploader {
                         rdfUploadService.updateUploadStatus(uploadId, "failed", e.getMessage());
                     }
                 });
-                
+
             } catch (Exception e) {
                 fileResult.put("status", "failed");
                 fileResult.put("reason", e.getMessage());
@@ -126,7 +144,7 @@ public class RdfUploaderController implements RdfUploader {
                 ImgpediaLogger.error(e.getMessage());
             }
         }
-        
+
         return ResponseEntity.accepted().body(Map.of(
             "message", "Multiple file uploads initiated",
             "count", files.length,

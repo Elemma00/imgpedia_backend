@@ -30,31 +30,32 @@ public class DataInitializer implements CommandLineRunner {
     private PasswordEncoder passwordEncoder;
     
     @Value("${admin}")
-    private String adminUser;
+    private String superAdminUser;
     
     @Value("${password}")
-    private String adminPassword;
+    private String superAdminPass;
 
     @Override
     public void run(String... args) throws Exception {
-        ImgpediaLogger.info("Initializing database with default roles and admin user");
- 
+        ImgpediaLogger.info("Initializing database with default roles and super admin user");
+
+        Role superAdminRole = createRoleIfNotExists("SUPERADMIN");
         Role adminRole = createRoleIfNotExists("ADMIN");
         Role userRole = createRoleIfNotExists("USER");
         
  
-        if (userRepository.findByUsername(adminUser).isEmpty()) {
-            User admin = new User();
-            admin.setUsername(adminUser);
-            admin.setPassword(passwordEncoder.encode(adminPassword));
-            admin.setEmail("admin@imgpedia.org");
-            admin.setRoles(Collections.singleton(adminRole));
-            admin.setEnabled(true);
+        if (userRepository.findByUsername(superAdminUser).isEmpty()) {
+            User superadmin = new User();
+            superadmin.setUsername(superAdminUser);
+            superadmin.setPassword(passwordEncoder.encode(superAdminPass));
+            superadmin.setEmail("admin@imgpedia.org");
+            superadmin.setRoles(Collections.singleton(superAdminRole));
+            superadmin.setEnabled(true);
             
-            userRepository.save(admin);
-            ImgpediaLogger.info("Admin user created successfully");
+            userRepository.save(superadmin);
+            ImgpediaLogger.info("SuperAdmin user created successfully");
         } else {
-            ImgpediaLogger.info("Admin user already exists");
+            ImgpediaLogger.info("SuperAdmin user already exists");
         }
     }
     

@@ -44,28 +44,45 @@ public class SecurityConfig {
      * @return the configured SecurityFilterChain
      * @throws Exception if an error occurs during configuration
      */
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-            return http
-            .csrf(csrf -> csrf.disable())
-            .headers(headers -> headers.frameOptions().sameOrigin())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-            
-                .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/api/auth/**").permitAll() // Nuevo endpoint de autenticación
-                .requestMatchers("/api/sparql/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/data/status").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/data/upload").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/data/upload-multiple").authenticated()          
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .anyRequest().permitAll()
-            )
-            .with(new JwtFilterConfigurer(jwtTokenProvider), jwt -> {})
-            .authenticationProvider(authenticationProvider())
-            .build();
-    }
+@Bean
+public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    return http
+        .csrf(csrf -> csrf.disable())
+        .headers(headers -> headers.contentTypeOptions(contentTypeOptions -> contentTypeOptions.disable()))
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // <-- Permitir preflight
+            .requestMatchers("/h2-console/**").permitAll()
+            .requestMatchers("/api/auth/**").permitAll()
+            .requestMatchers("/api/sparql/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/data/status").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/data/upload").authenticated()
+            .requestMatchers(HttpMethod.POST, "/api/data/upload-multiple").authenticated()
+            .requestMatchers("/api/admin/**").hasAnyRole("SUPERADMIN","ADMIN")
+            .anyRequest().permitAll()
+        )
+        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        .with(new JwtFilterConfigurer(jwtTokenProvider), jwt -> {})
+        .authenticationProvider(authenticationProvider())
+        .build();
+}
 
+/**
+ * Configures CORS for the application to allow cross-origin requests.
+ * @return the configured CorsConfigurationSource
+ */
+@Bean
+public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+    org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
+    configuration.setAllowedOrigins(java.util.Arrays.asList("http://localhost:4200"));
+    configuration.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+    configuration.setAllowedHeaders(java.util.Arrays.asList("authorization", "content-type", "x-auth-token"));
+    configuration.setExposedHeaders(java.util.Arrays.asList("x-auth-token"));
+    configuration.setAllowCredentials(true);
+    org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+    return source;
+}
     /**
      * Configures the authentication provider for the application.
      * It uses DaoAuthenticationProvider with a custom UserDetailsService and PasswordEncoder.

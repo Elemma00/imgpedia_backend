@@ -61,4 +61,5 @@ public interface RdfUploader {
     @Operation(summary = "Get status of all RDF uploads")
     @GetMapping("/status-all")
     ResponseEntity<?> getAllUploadStatuses();
+
 }

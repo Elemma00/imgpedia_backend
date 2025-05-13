@@ -50,6 +50,9 @@ public class RdfUploadService {
     @Qualifier("rdfModel")
     private Model model;
 
+    @Autowired
+    private UserService userService;
+
     private String uploadDir = "/imgpedia/temp_extraction";
 
     private final Map<String, Map<String, Object>> uploadStatus = new ConcurrentHashMap<>();
@@ -197,7 +200,7 @@ public class RdfUploadService {
                     .source(inputStream)
                     .lang(RDFLanguages.filenameToLang(file.getName()))
                     .errorHandler(createErrorHandler())
-                    .parse(tempModel);
+                    .parse(new EncodeIRI(tempModel));
             
             updateUploadStatus(uploadId, "processing", MessagesLogs.FILE_PARSED);
             updateUploadStatus(uploadId, "progress", 70);
@@ -489,5 +492,9 @@ public class RdfUploadService {
     
     public Map<String, Object> getUploadStatusById(String uploadId) {
         return uploadStatus.getOrDefault(uploadId, Map.of("status", "not_found"));
+    }
+
+    public UserService getUserService() {
+        return userService;
     }
 }
