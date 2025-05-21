@@ -2,21 +2,20 @@ package com.imgpedia.imgpedia_backend.dataload;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.jena.query.Dataset;
-import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.riot.RDFParser;
 import org.apache.jena.riot.system.ErrorHandler;
@@ -38,7 +37,7 @@ public class RdfConfiguration {
             System.getProperty("user.dir") + File.separator + "imgpedia_tdb";
     private static final String TRACKER_FILE = DB + File.separator + "loaded_files.properties";
     private static final int FILES_PER_DATASET = 100;
-    private static final int THREADS = 20; // O ajusta según tu hardware
+    private static final int THREADS = 10; // O ajusta según tu hardware
 
     private Dataset dataset;
     private Model model;
@@ -57,147 +56,116 @@ public class RdfConfiguration {
         File dbDir = new File(DB);
         if (!dbDir.exists()) dbDir.mkdirs();
 
+        // Create export directory
+        String exportDir = DB + File.separator + "exports";
+        File exportDirectory = new File(exportDir);
+        if (!exportDirectory.exists()) {
+            exportDirectory.mkdirs();
+        }
+
+        // Get all files to process
         String[] directories = getRdfDirectories();
         List<File> allFiles = new ArrayList<>();
         for (String directoryPath : directories) {
             File dir = new File(directoryPath);
             File[] files = dir.listFiles((dir1, name) ->
-                    name.endsWith(".ttl") || name.endsWith(".rdf") || name.endsWith(".tar.gz"));
+            name.endsWith(".ttl") || name.endsWith(".rdf") || name.endsWith(".tar.gz"));
             if (files != null) {
-                for (File f : files) allFiles.add(f);
+            Collections.addAll(allFiles, files);
             }
         }
         int totalFiles = allFiles.size();
         ImgpediaLogger.info("Total files to process: " + totalFiles);
 
-        // Divide archivos en batches
-        List<List<File>> batches = new ArrayList<>();
-        for (int i = 0; i < allFiles.size(); i += FILES_PER_DATASET) {
-            int end = Math.min(i + FILES_PER_DATASET, allFiles.size());
-            batches.add(allFiles.subList(i, end));
-        }
+        // Create a thread pool with 12 threads
+        final int NUM_THREADS = 12;
+        ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
+        AtomicInteger processedCount = new AtomicInteger(0);
+        AtomicInteger successCount = new AtomicInteger(0);
 
-        ExecutorService executor = Executors.newFixedThreadPool(THREADS);
-        List<Future<String>> futures = new ArrayList<>();
+        // Process files in parallel
+        for (File file : allFiles) {
+            executor.submit(() -> {
+            // Skip already processed files
+            if (loadTracker.isFileLoaded(file)) {
+                ImgpediaLogger.info("Skipping already loaded file: " + file.getName());
+                int current = processedCount.incrementAndGet();
+                printProgress(current, totalFiles, "Processing files");
+                return;
+            }
 
-        // 1. Procesar los batches en paralelo
-        for (int i = 0; i < batches.size(); i++) {
-            final int datasetIndex = i;
-            final List<File> batch = new ArrayList<>(batches.get(i));
-            futures.add(executor.submit(() -> {
-                String tempPath = DB + File.separator + "temp_" + datasetIndex;
-                Dataset tempDataset = null;
-                Model tempModel = null;
-                List<File> loadedFiles = new ArrayList<>();
-                try {
-                    new File(tempPath).mkdirs();
-                    tempDataset = TDB2Factory.connectDataset(tempPath);
-                    tempDataset.begin(ReadWrite.WRITE);
-                    tempModel = tempDataset.getDefaultModel();
-                    for (File file : batch) {
-                        if (loadTracker.isFileLoaded(file)) {
-                            ImgpediaLogger.info("[Thread-" + datasetIndex + "] Skipping already loaded file: " + file.getName());
-                            continue;
-                        }
-                        boolean success = false;
-                        try (InputStream inputStream = new FileInputStream(file)) {
-                            ImgpediaLogger.info("[Thread-" + datasetIndex + "] Loading file: " + file.getAbsolutePath());
-                            RDFParser.create()
-                                    .source(inputStream)
-                                    .lang(RDFLanguages.filenameToLang(file.getName()))
-                                    .errorHandler(createErrorHandler())
-                                    .parse(new EncodeIRI(tempModel));
-                            ImgpediaLogger.info("[Thread-" + datasetIndex + "] Successfully loaded file content: " + file.getName());
-                            success = true;
-                        } catch (Exception e) {
-                            ImgpediaLogger.error("[Thread-" + datasetIndex + "] Error loading file: " + file.getAbsolutePath() + " - " + e.getMessage());
-                        }
-                        if (success) loadedFiles.add(file);
-                    }
-                    tempDataset.commit();
-                    ImgpediaLogger.info("[Thread-" + datasetIndex + "] Commit realizado para batch.");
-                    // Marca los archivos como cargados solo después del commit
-                    synchronized (loadTracker) {
-                        for (File loaded : loadedFiles) {
-                            loadTracker.markFileAsLoaded(loaded);
-                            ImgpediaLogger.info("[Thread-" + datasetIndex + "] Marked file as loaded after commit: " + loaded.getName());
-                        }
-                    }
-                    return tempPath;
+            try {
+                // Create a new model for this file
+                Model fileModel = ModelFactory.createDefaultModel();
+                boolean success = false;
+
+                // Parse the file
+                try (InputStream inputStream = new FileInputStream(file)) {
+                ImgpediaLogger.info("Loading file: " + file.getAbsolutePath());
+                RDFParser.create()
+                    .source(inputStream)
+                    .lang(RDFLanguages.filenameToLang(file.getName()))
+                    .errorHandler(createErrorHandler())
+                    .parse(new EncodeIRI(fileModel));
+                ImgpediaLogger.info("Successfully loaded file: " + file.getName() + " with " + fileModel.size() + " triples");
+                success = true;
                 } catch (Exception e) {
-                    ImgpediaLogger.error("[Thread-" + datasetIndex + "] Error en batch: " + e.getMessage());
-                    return null;
-                } finally {
-                    if (tempDataset != null) {
-                        if (tempDataset.isInTransaction()) {
-                            tempDataset.abort();
-                            tempDataset.end();
-                        }
-                        tempDataset.close();
-                    }
+                ImgpediaLogger.error("Error loading file: " + file.getAbsolutePath() + " - " + e.getMessage());
                 }
-            }));
+
+                // Write to output file if successful
+                if (success) {
+                String outputFilename = exportDir + File.separator + file.getName().replaceAll("[^a-zA-Z0-9.-]", "_");
+                try (FileOutputStream out = new FileOutputStream(outputFilename)) {
+                    ImgpediaLogger.info("Writing " + fileModel.size() + " triples to " + outputFilename);
+                    fileModel.write(out, "TTL");
+                    ImgpediaLogger.info("Successfully wrote to: " + outputFilename);
+                    
+                    // Mark file as loaded using synchronized access
+                    synchronized (loadTracker) {
+                    loadTracker.markFileAsLoaded(file);
+                    }
+                    successCount.incrementAndGet();
+                } catch (Exception e) {
+                    ImgpediaLogger.error("Error writing TTL file: " + e.getMessage());
+                }
+                }
+
+                // Free memory
+                fileModel.close();
+
+                // Update progress
+                int current = processedCount.incrementAndGet();
+                printProgress(current, totalFiles, "Processing files");
+                
+            } catch (Exception e) {
+                ImgpediaLogger.error("Error processing file: " + file.getName() + " - " + e.getMessage());
+                int current = processedCount.incrementAndGet();
+                printProgress(current, totalFiles, "Processing files");
+            }
+            });
         }
 
+        // Wait for all tasks to complete
         executor.shutdown();
         try {
-            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+            executor.awaitTermination(Long.MAX_VALUE, java.util.concurrent.TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
+            ImgpediaLogger.error("Thread execution was interrupted: " + e.getMessage());
             Thread.currentThread().interrupt();
-            ImgpediaLogger.error("Batch processing interrupted: " + e.getMessage());
         }
 
-        // Recoge los paths de los datasets temporales exitosos
-        for (Future<String> future : futures) {
-            try {
-                String tempPath = future.get();
-                if (tempPath != null) tempDatasetPaths.add(tempPath);
-            } catch (Exception e) {
-                ImgpediaLogger.error("Error recuperando resultado de batch: " + e.getMessage());
-            }
-        }
+        ImgpediaLogger.info("File processing completed. Successfully processed " + successCount.get() + 
+                " out of " + totalFiles + " files. Output files are in: " + exportDir);
 
-        // 2. Fusionar datasets temporales en el dataset final
-        String finalDatasetPath = DB + File.separator + "final";
-        new File(finalDatasetPath).mkdirs();
-        Dataset finalDataset = TDB2Factory.connectDataset(finalDatasetPath);
-        finalDataset.begin(ReadWrite.WRITE);
-        Model finalModel = finalDataset.getDefaultModel();
-
-        int totalTempDatasets = tempDatasetPaths.size();
-        int mergedCount = 0;
-        ImgpediaLogger.info("Comenzando fusión de " + totalTempDatasets + " datasets temporales...");
-        for (String tempPath : tempDatasetPaths) {
-            Dataset tempDataset = TDB2Factory.connectDataset(tempPath);
-            tempDataset.begin(ReadWrite.READ);
-            try {
-                finalModel.add(tempDataset.getDefaultModel());
-                ImgpediaLogger.info("Merged dataset: " + tempPath + " into final dataset");
-            } finally {
-                tempDataset.end();
-                tempDataset.close();
-            }
-            // Elimina el dataset temporal del disco
-            deleteDirectory(Paths.get(tempPath));
-            ImgpediaLogger.info("Deleted temporary dataset: " + tempPath);
-
-            mergedCount++;
-            printProgress(mergedCount, totalTempDatasets, "Fusión de datasets");
-        }
-
-        finalDataset.commit();
-        finalDataset.end();
-
-        // Asigna el dataset y modelo final a los beans
-        this.dataset = finalDataset;
-        this.model = finalDataset.getDefaultModel();
-
-        ImgpediaLogger.info("Fusion complete. Final dataset at: " + finalDatasetPath);
+        // Create an empty dataset for the beans
+        this.dataset = TDB2Factory.connectDataset(DB);
+        this.model = dataset.getDefaultModel();
     }
 
     private void printProgress(int current, int total, String etapa) {
         int percent = (int) ((current * 100.0f) / total);
-        ImgpediaLogger.info("[" + etapa + "] Progreso: " + current + "/" + total + " (" + percent + "%)");
+        ImgpediaLogger.info("[" + etapa + "] Progress: " + current + "/" + total + " (" + percent + "%)");
     }
 
     private String[] getRdfDirectories() {

@@ -56,4 +56,5 @@ public class EncodeIRI extends StreamRDFBase {
                   .replace("\r", "%0D")
                   .replace("\t", "%09");
     }
+
 }
