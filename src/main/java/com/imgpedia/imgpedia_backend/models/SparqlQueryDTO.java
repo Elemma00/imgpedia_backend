@@ -13,18 +13,19 @@ public class SparqlQueryDTO {
 
     // This graph attribute is not used in the current implementation, but it is included for future use.
     private Optional<String> graph = Optional.empty();
-    
+
     @Min(value = 0, message = "Timeout must be greater than or equal to 0")
     private Integer timeout = 0;
-    
+
     @Pattern(
-        regexp = "^(json|xml|csv|tsv|ttl|nt)$", 
-        flags = Pattern.Flag.CASE_INSENSITIVE,
-        message = "must be a string and be one of these options: JSON, XML, CSV, TSV, TTL, NT"
+            regexp = "^(json|xml|csv|tsv|ttl|nt)$",
+            flags = Pattern.Flag.CASE_INSENSITIVE,
+            message = "must be a string and be one of these options: JSON, XML, CSV, TSV, TTL, NT"
     )
     private String format = "json";
 
-   
+    private String clientQueryId;
+
     public String getQuery() {
         return query;
     }
@@ -32,24 +33,37 @@ public class SparqlQueryDTO {
     public void setQuery(String query) {
         this.query = query;
     }
+
     public Optional<String> getGraph() {
         return graph;
     }
+
     public void setGraph(String graph) {
         this.graph = Optional.ofNullable(graph);
     }
+
     public Integer getTimeout() {
         return timeout;
     }
+
     public void setTimeout(Integer timeout) {
         this.timeout = timeout;
     }
-    
+
     public String getFormat() {
         return format;
     }
+
     public void setFormat(String format) {
         this.format = format;
+    }
+
+    public String getClientQueryId() {
+        return clientQueryId;
+    }
+
+    public void setClientQueryId(String clientQueryId) {
+        this.clientQueryId = clientQueryId;
     }
 
     @Override
@@ -57,6 +71,5 @@ public class SparqlQueryDTO {
         return "SparqlQueryDTO [query=" + query + ", graph=" + graph + ", timeout=" + timeout + ", format=" + format
                 + "]";
     }
-    
-    
+
 }

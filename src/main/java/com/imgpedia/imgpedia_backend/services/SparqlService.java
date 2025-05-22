@@ -1,10 +1,13 @@
 package com.imgpedia.imgpedia_backend.services;
 
+import java.util.AbstractMap;
+import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
@@ -30,24 +33,52 @@ import com.imgpedia.imgpedia_backend.utils.MessagesLogs;
 public class SparqlService {
 
     private final Model rdfModel;
-    
+   
+    private final ConcurrentHashMap<String, Map.Entry<QueryExecution, CompletableFuture<ResultSet>>> activeQueries = new ConcurrentHashMap<>();
+
     public SparqlService(@Qualifier("rdfModel") Model rdfModel) {
         this.rdfModel = rdfModel;
     }
 
-    private final AtomicReference<QueryExecution> currentQueryExecution = new AtomicReference<>();
-    public ResultSet executeQuery(SparqlQueryDTO queryDTO) throws InterruptedException, ExecutionException, TimeoutException {
-        rdfModel.getGraph().getTransactionHandler().begin();
+   public ResultSet executeQuery(SparqlQueryDTO queryDTO) throws InterruptedException, ExecutionException, TimeoutException {
+        String clientQueryId = queryDTO.getClientQueryId();
+        if (clientQueryId == null || clientQueryId.isEmpty()) {
+            throw new IllegalArgumentException("clientQueryId is required");
+        }
         Query query = createQuery(queryDTO.getQuery());
         Integer timeout = queryDTO.getTimeout();
 
-        try (QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel)) {
-            currentQueryExecution.set(qexec);
-            return executeQueryWithTimeout(qexec, timeout);
+        QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel);
+        CompletableFuture<ResultSet> future = CompletableFuture.supplyAsync(() -> {
+        rdfModel.begin();
+        try {
+            return copyResults(qexec.execSelect());
+        } catch (Exception e) {
+            if (Thread.currentThread().isInterrupted()) {
+                qexec.abort();
+                throw new RuntimeException("Query cancelled by user");
+            }
+            throw new RuntimeException(e);
         } finally {
-            currentQueryExecution.set(null);
+            rdfModel.close();
+        }
+    });
+
+        activeQueries.put(clientQueryId, new AbstractMap.SimpleEntry<>(qexec, future));
+        try {
+            if (timeout == null || timeout == 0) {
+                return future.get();
+            } else {
+                return future.get(timeout, TimeUnit.MILLISECONDS);
+            }
+        } catch (CancellationException e) {
+            throw new RuntimeException("Query cancelled by user");
+        } finally {
+            activeQueries.remove(clientQueryId);
+            qexec.close();
         }
     }
+
 
     private Query createQuery(String queryString) {
         try {
@@ -58,26 +89,6 @@ public class SparqlService {
         }
     }
 
-    private ResultSet executeQueryWithTimeout(QueryExecution qexec, Integer timeout) throws InterruptedException, ExecutionException, TimeoutException {
-        if (timeout == null || timeout == 0) {
-            ImgpediaLogger.info("Executing query without timeout");
-            return copyResults(qexec.execSelect());
-        } else {
-            ImgpediaLogger.info("Executing query with timeout: " + timeout + "ms");
-            return executeWithTimeout(qexec, timeout);
-        }
-    }
-
-    private ResultSet executeWithTimeout(QueryExecution qexec, Integer timeout) throws InterruptedException, ExecutionException, TimeoutException {
-        CompletableFuture<ResultSet> future = CompletableFuture.supplyAsync(() -> copyResults(qexec.execSelect()));
-
-        try {
-            return future.orTimeout(timeout, TimeUnit.MILLISECONDS).get();
-        } catch (ExecutionException e) {
-            handleExecutionException(qexec, e, timeout);
-            return null;
-        }
-    }
 
     private void handleExecutionException(QueryExecution qexec, ExecutionException e, Integer timeout) throws ExecutionException, TimeoutException {
         if (e.getCause() instanceof TimeoutException) {
@@ -92,24 +103,13 @@ public class SparqlService {
         return ResultSetFactory.copyResults(originalResults);
     }
 
-    public void stopQuery() {
-        QueryExecution qexec = currentQueryExecution.getAndSet(null);
-        if (qexec != null) {
-            qexec.abort();
+    public void stopQuery(String clientQueryId) {
+        Map.Entry<QueryExecution, CompletableFuture<ResultSet>> entry = activeQueries.get(clientQueryId);
+        if (entry != null) {
+            entry.getKey().abort();
+            entry.getValue().cancel(true);
+            activeQueries.remove(clientQueryId);
         }
     }
 
-    // public boolean executeAsk(String queryString) {
-    //     Query query = QueryFactory.create(queryString);
-    //     try (QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel)) {
-    //         return qexec.execAsk();
-    //     }
-    // }
-
-    // public Model executeConstruct(String queryString) {
-    //     Query query = QueryFactory.create(queryString);
-    //     try (QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel)) {
-    //         return qexec.execConstruct();
-    //     }
-    // }
 }

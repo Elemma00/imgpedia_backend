@@ -1,23 +1,14 @@
 package com.imgpedia.imgpedia_backend.dataload;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.jena.query.Dataset;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.riot.RDFLanguages;
-import org.apache.jena.riot.RDFParser;
 import org.apache.jena.riot.system.ErrorHandler;
 import org.apache.jena.tdb2.TDB2Factory;
 import org.springframework.context.annotation.Bean;
@@ -56,107 +47,107 @@ public class RdfConfiguration {
         File dbDir = new File(DB);
         if (!dbDir.exists()) dbDir.mkdirs();
 
-        // Create export directory
-        String exportDir = DB + File.separator + "exports";
-        File exportDirectory = new File(exportDir);
-        if (!exportDirectory.exists()) {
-            exportDirectory.mkdirs();
-        }
+        // // Create export directory
+        // String exportDir = DB + File.separator + "exports";
+        // File exportDirectory = new File(exportDir);
+        // if (!exportDirectory.exists()) {
+        //     exportDirectory.mkdirs();
+        // }
 
-        // Get all files to process
-        String[] directories = getRdfDirectories();
-        List<File> allFiles = new ArrayList<>();
-        for (String directoryPath : directories) {
-            File dir = new File(directoryPath);
-            File[] files = dir.listFiles((dir1, name) ->
-            name.endsWith(".ttl") || name.endsWith(".rdf") || name.endsWith(".tar.gz"));
-            if (files != null) {
-            Collections.addAll(allFiles, files);
-            }
-        }
-        int totalFiles = allFiles.size();
-        ImgpediaLogger.info("Total files to process: " + totalFiles);
+        // // Get all files to process
+        // String[] directories = getRdfDirectories();
+        // List<File> allFiles = new ArrayList<>();
+        // for (String directoryPath : directories) {
+        //     File dir = new File(directoryPath);
+        //     File[] files = dir.listFiles((dir1, name) ->
+        //     name.endsWith(".ttl") || name.endsWith(".rdf") || name.endsWith(".tar.gz"));
+        //     if (files != null) {
+        //     Collections.addAll(allFiles, files);
+        //     }
+        // }
+        // int totalFiles = allFiles.size();
+        // ImgpediaLogger.info("Total files to process: " + totalFiles);
 
-        // Create a thread pool with 12 threads
-        final int NUM_THREADS = 12;
-        ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
-        AtomicInteger processedCount = new AtomicInteger(0);
-        AtomicInteger successCount = new AtomicInteger(0);
+        // // Create a thread pool with 12 threads
+        // final int NUM_THREADS = 12;
+        // ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
+        // AtomicInteger processedCount = new AtomicInteger(0);
+        // AtomicInteger successCount = new AtomicInteger(0);
 
-        // Process files in parallel
-        for (File file : allFiles) {
-            executor.submit(() -> {
-            // Skip already processed files
-            if (loadTracker.isFileLoaded(file)) {
-                ImgpediaLogger.info("Skipping already loaded file: " + file.getName());
-                int current = processedCount.incrementAndGet();
-                printProgress(current, totalFiles, "Processing files");
-                return;
-            }
+        // // Process files in parallel
+        // for (File file : allFiles) {
+        //     executor.submit(() -> {
+        //     // Skip already processed files
+        //     if (loadTracker.isFileLoaded(file)) {
+        //         ImgpediaLogger.info("Skipping already loaded file: " + file.getName());
+        //         int current = processedCount.incrementAndGet();
+        //         printProgress(current, totalFiles, "Processing files");
+        //         return;
+        //     }
 
-            try {
-                // Create a new model for this file
-                Model fileModel = ModelFactory.createDefaultModel();
-                boolean success = false;
+        //     try {
+        //         // Create a new model for this file
+        //         Model fileModel = ModelFactory.createDefaultModel();
+        //         boolean success = false;
 
-                // Parse the file
-                try (InputStream inputStream = new FileInputStream(file)) {
-                ImgpediaLogger.info("Loading file: " + file.getAbsolutePath());
-                RDFParser.create()
-                    .source(inputStream)
-                    .lang(RDFLanguages.filenameToLang(file.getName()))
-                    .errorHandler(createErrorHandler())
-                    .parse(new EncodeIRI(fileModel));
-                ImgpediaLogger.info("Successfully loaded file: " + file.getName() + " with " + fileModel.size() + " triples");
-                success = true;
-                } catch (Exception e) {
-                ImgpediaLogger.error("Error loading file: " + file.getAbsolutePath() + " - " + e.getMessage());
-                }
+        //         // Parse the file
+        //         try (InputStream inputStream = new FileInputStream(file)) {
+        //         ImgpediaLogger.info("Loading file: " + file.getAbsolutePath());
+        //         RDFParser.create()
+        //             .source(inputStream)
+        //             .lang(RDFLanguages.filenameToLang(file.getName()))
+        //             .errorHandler(createErrorHandler())
+        //             .parse(new EncodeIRI(fileModel));
+        //         ImgpediaLogger.info("Successfully loaded file: " + file.getName() + " with " + fileModel.size() + " triples");
+        //         success = true;
+        //         } catch (Exception e) {
+        //         ImgpediaLogger.error("Error loading file: " + file.getAbsolutePath() + " - " + e.getMessage());
+        //         }
 
-                // Write to output file if successful
-                if (success) {
-                String outputFilename = exportDir + File.separator + file.getName().replaceAll("[^a-zA-Z0-9.-]", "_");
-                try (FileOutputStream out = new FileOutputStream(outputFilename)) {
-                    ImgpediaLogger.info("Writing " + fileModel.size() + " triples to " + outputFilename);
-                    fileModel.write(out, "TTL");
-                    ImgpediaLogger.info("Successfully wrote to: " + outputFilename);
+        //         // Write to output file if successful
+        //         if (success) {
+        //         String outputFilename = exportDir + File.separator + file.getName().replaceAll("[^a-zA-Z0-9.-]", "_");
+        //         try (FileOutputStream out = new FileOutputStream(outputFilename)) {
+        //             ImgpediaLogger.info("Writing " + fileModel.size() + " triples to " + outputFilename);
+        //             fileModel.write(out, "TTL");
+        //             ImgpediaLogger.info("Successfully wrote to: " + outputFilename);
                     
-                    // Mark file as loaded using synchronized access
-                    synchronized (loadTracker) {
-                    loadTracker.markFileAsLoaded(file);
-                    }
-                    successCount.incrementAndGet();
-                } catch (Exception e) {
-                    ImgpediaLogger.error("Error writing TTL file: " + e.getMessage());
-                }
-                }
+        //             // Mark file as loaded using synchronized access
+        //             synchronized (loadTracker) {
+        //             loadTracker.markFileAsLoaded(file);
+        //             }
+        //             successCount.incrementAndGet();
+        //         } catch (Exception e) {
+        //             ImgpediaLogger.error("Error writing TTL file: " + e.getMessage());
+        //         }
+        //         }
 
-                // Free memory
-                fileModel.close();
+        //         // Free memory
+        //         fileModel.close();
 
-                // Update progress
-                int current = processedCount.incrementAndGet();
-                printProgress(current, totalFiles, "Processing files");
+        //         // Update progress
+        //         int current = processedCount.incrementAndGet();
+        //         printProgress(current, totalFiles, "Processing files");
                 
-            } catch (Exception e) {
-                ImgpediaLogger.error("Error processing file: " + file.getName() + " - " + e.getMessage());
-                int current = processedCount.incrementAndGet();
-                printProgress(current, totalFiles, "Processing files");
-            }
-            });
-        }
+        //     } catch (Exception e) {
+        //         ImgpediaLogger.error("Error processing file: " + file.getName() + " - " + e.getMessage());
+        //         int current = processedCount.incrementAndGet();
+        //         printProgress(current, totalFiles, "Processing files");
+        //     }
+        //     });
+        // }
 
-        // Wait for all tasks to complete
-        executor.shutdown();
-        try {
-            executor.awaitTermination(Long.MAX_VALUE, java.util.concurrent.TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            ImgpediaLogger.error("Thread execution was interrupted: " + e.getMessage());
-            Thread.currentThread().interrupt();
-        }
+        // // Wait for all tasks to complete
+        // executor.shutdown();
+        // try {
+        //     executor.awaitTermination(Long.MAX_VALUE, java.util.concurrent.TimeUnit.NANOSECONDS);
+        // } catch (InterruptedException e) {
+        //     ImgpediaLogger.error("Thread execution was interrupted: " + e.getMessage());
+        //     Thread.currentThread().interrupt();
+        // }
 
-        ImgpediaLogger.info("File processing completed. Successfully processed " + successCount.get() + 
-                " out of " + totalFiles + " files. Output files are in: " + exportDir);
+        // ImgpediaLogger.info("File processing completed. Successfully processed " + successCount.get() + 
+        //         " out of " + totalFiles + " files. Output files are in: " + exportDir);
 
         // Create an empty dataset for the beans
         this.dataset = TDB2Factory.connectDataset(DB);

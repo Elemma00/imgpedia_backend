@@ -5,6 +5,8 @@ import com.imgpedia.imgpedia_backend.models.SparqlQueryDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -34,5 +36,5 @@ public interface SparqlApi {
      */
     @Operation(summary = "Stop the currently running SPARQL query")
     @PostMapping("/query/stop")
-    ResponseEntity<?> stopQuery();
+    ResponseEntity<?> stopQuery(@Valid @RequestBody Map<String, String> body);
 }

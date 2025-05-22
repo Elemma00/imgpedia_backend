@@ -46,6 +46,12 @@ public class SparqlController implements SparqlApi {
 
             return ResponseEntity.ok(outputStream.toString());
 
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("cancelled by user")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "La consulta fue cancelada por el usuario."));
+            }
+            throw e;
         } catch (Exception e) {
             ImgpediaLogger.error(MessagesLogs.QUERY_DEFAULT_ERROR + e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -53,10 +59,11 @@ public class SparqlController implements SparqlApi {
     }
 
     @Override
-    public ResponseEntity<?> stopQuery() {
+    public ResponseEntity<?> stopQuery(@Valid @RequestBody Map<String, String> body) {
         ImgpediaLogger.logRequest("POST", "/api/sparql/query/stop", null, null);
         try {
-            sparqlService.stopQuery();
+            String clientQueryId = body.get("clientQueryId");
+            sparqlService.stopQuery(clientQueryId);
             Map<String, String> response = new HashMap<>();
             response.put("message", "Query stopped successfully");
             ImgpediaLogger.logResponse(200, MessagesLogs.QUERY_STOPPED);
