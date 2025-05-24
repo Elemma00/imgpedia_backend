@@ -25,6 +25,12 @@ RUN mkdir -p /nas_mount/imgpedia/resource
 
 COPY --from=builder /app/imgpedia_backend/target/*.jar .
 
+RUN apk add --no-cache curl tar
+
+RUN curl -L https://dlcdn.apache.org/jena/binaries/apache-jena-5.4.0.tar.gz | tar xz -C /opt
+
+ENV PATH="/opt/apache-jena-5.4.0/bin:${PATH}"
+
 ENV PORT 8081
 
 EXPOSE $PORT
