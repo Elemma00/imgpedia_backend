@@ -53,7 +53,8 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // <-- Permitir preflight
             .requestMatchers("/h2-console/**").permitAll()
-            .requestMatchers("/api/auth/**").permitAll()
+            .requestMatchers("/api/auth/login").permitAll()
+            .requestMatchers("/api/auth/register").authenticated()
             .requestMatchers("/api/sparql/**").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/data/*").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/data/*").authenticated()
