@@ -144,3 +144,21 @@ SELECT ?country ?lifeExpectancy ?hdi ?isoCode ?c WHERE {
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],es". }
   }
 } CLUSTER BY ?lifeExpectancy ?hdi WITH sim:kmeans(4) AS ?c
+
+
+##############################################
+
+PREFIX sim: <http://sj.dcc.uchile.cl/sim#>
+PREFIX imo: <http://imgpedia.dcc.uchile.cl/ontology#>
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX : <http://imgpedia.dcc.uchile.cl/ontology#>
+
+SELECT ?Source ?Target ?Distance WHERE
+{ ?Rel <http://imgpedia.dcc.uchile.cl/ontology#sourceImage> ?Source; 
+  <http://imgpedia.dcc.uchile.cl/ontology#targetImage> ?Target; 
+  <http://imgpedia.dcc.uchile.cl/ontology#distance> ?Distance .} 
+LIMIT 100
+OFFSET 10

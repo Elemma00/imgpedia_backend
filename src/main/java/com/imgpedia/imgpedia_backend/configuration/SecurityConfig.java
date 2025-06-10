@@ -55,7 +55,7 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
             .requestMatchers("/h2-console/**").permitAll()
             .requestMatchers("/api/auth/**").permitAll()
             .requestMatchers("/api/sparql/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/data/*").authenticated()
+            .requestMatchers(HttpMethod.GET, "/api/data/*").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/data/*").authenticated()
             .requestMatchers("/api/admin/**").hasAnyRole("SUPERADMIN","ADMIN")
             .anyRequest().permitAll()
