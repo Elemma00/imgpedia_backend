@@ -25,7 +25,6 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.event.pusher && contains(fromJson('["OWNER","COLLABORATOR"]'), github.event.sender.type)
     steps:
       - name: Copia clave SSH
         uses: webfactory/ssh-agent@v0.9.0
