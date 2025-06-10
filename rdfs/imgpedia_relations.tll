@@ -1,5 +1,0 @@
-@prefix : <http://imgpedia.dcc.uchile.cl/ontology#> .
-
-:descriptor1 :descriptorValue "[32, 45, 67, 89, 12, 34]" .
-:descriptor2 :descriptorValue "[120, 145, 167, 189, 112, 134]" .
-:descriptor3 :descriptorValue "[45, 67, 89, 12, 34, 56]" .
