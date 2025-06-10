@@ -19,7 +19,6 @@ import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFParser;
 import org.apache.jena.riot.system.ErrorHandler;
 import org.apache.jena.tdb1.TDB1Factory;
-import org.apache.jena.tdb2.TDB2Factory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.context.annotation.ApplicationScope;
@@ -79,8 +78,8 @@ public class RdfConfiguration {
             return;
         } else {
             String sanitizedDir = exportDir + File.separator + "sanitized";
-            convertTtlToNTriplesWithCleaning(directories, exportDir, sanitizedDir);
-            validateAllNtFilesWithXLoader(exportDir, sanitizedDir);
+            // convertTtlToNTriplesWithCleaning(directories, exportDir, sanitizedDir);
+            // validateAllNtFilesWithXLoader(exportDir, sanitizedDir);
             runTdb1XLoader();
         }
 
