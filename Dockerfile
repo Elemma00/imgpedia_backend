@@ -7,6 +7,8 @@ COPY ./mvnw .
 COPY ./pom.xml .
 COPY ./libs ./libs
 
+RUN chmod +x ./mvnw
+
 # Install dependencies but not build 
 RUN ./mvnw clean package -Dspring.profiles.active=local -Dmaven.test.skip -Dmaven.main.skip -Dspring-boot.repackage.skip && rm -r ./target/
 

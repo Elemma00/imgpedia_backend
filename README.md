@@ -2,14 +2,15 @@
 
 ## Índice
 
-1. [Introducción](#introducción)  
-2. [Responsabilidades principales](#responsabilidades-principales)  
-3. [Estructura del proyecto](#estructura-del-proyecto)  
-4. [Tecnologías principales](#tecnologías-principales)  
-5. [Uso rápido](#uso-rápido)  
-6. [Seguridad](#seguridad)  
-7. [Contacto](#contacto)  
-8. [Paginación](#paginación)  
+- [Introducción](#introducción)  
+- [Responsabilidades principales](#responsabilidades-principales)  
+- [Estructura del proyecto](#estructura-del-proyecto)  
+- [Tecnologías principales](#tecnologías-principales)  
+- [Levantamiento en Ambiente Local](#levantamiento-en-ambiente-local)  
+- [Levantamiento en Ambiente de Producción](#levantamiento-en-ambiente-producción)
+- [Seguridad](#seguridad)  
+- [Contacto](#contacto)  
+
 
 ---
 
@@ -47,22 +48,34 @@ El backend de IMGpedia es el núcleo que permite que los datos visuales y semán
 
 - [OpenJDK 21](https://openjdk.org/projects/jdk/21/)
 - [Spring Boot 3.4.4](https://spring.io/projects/spring-boot)
-- [Apache Jena 5.2 extendido por Ferrada et al.](https://github.com/scferrada/jena)
+- [Apache Jena 5.2 extendido con operaciones de similitud y clustering](https://github.com/scferrada/jena)
 - [Spring Security 3.4.4](https://spring.io/projects/spring-security)
 - [Docker](https://www.docker.com/)
 
 ---
 
-## Uso rápido
+## Levantamiento en Ambiente Local
 
-1. Para desarrollo y pruebas en ambiente local, ejecutar el comando: 
+1. Para desarrollar y probar nuevas funcionalidades en tu entorno local, ejecuta el siguiente comando desde la raíz del proyecto:
 
+En Windows
+```ps
+mvn spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+Linux (distribuciones basadas en Unix)
 ```sh
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-2. Inicia sesión utilizando las credenciales usuario: `admin` y contraseña: `admin`.
 
+2. Inicia sesión con el usuario `admin` y la contraseña `admin`. Guarda el token Bearer obtenido, ya que será necesario para acceder a los endpoints que requieren autenticación.
+
+```sh
+curl --location 'http://localhost:8081/api/auth/login' \
+--header 'Content-Type: application/json' \
+--data '{"username":"admin","password":"admin"}'
+```
 
 3. Subir datos RDF hacia la base de datos usando el endpoint `/api/data/upload`.  
 
@@ -70,14 +83,33 @@ mvn spring-boot:run -Dspring-boot.run.profiles=local
 curl --location 'localhost:8081/api/data/upload' \
 --form 'file=@"ruta/hacia/tu/archivo/"'
 ```
-
 Puedes consultar el estado de la carga utilizando el endpoint `/api/data/status`.
 
-4. Haz consultas SPARQL en el endpoint `api/sparql/query`
+4. Haz consultas SPARQL en el endpoint `api/sparql/query`, por ejemplo: 
 
+```sh 
+curl --location 'localhost:8081/api/sparql/query' \
+--header 'Content-Type: application/json' \
+--data '{
+  "query": "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 100",
+  "format": "json",
+  "timeout": 0,
+  "clientQueryId": 1
+}'
+```
 
 ---
+## Levantamiento en Ambiente Producción
 
+1. Si realizas cambios y deseas desplegarlos en producción, asegúrate de tener permisos para actualizar la [imagen pública de IMGpedia en Docker Hub](https://hub.docker.com/repository/docker/elemma00/imgpedia_backend/). Alternativamente, puedes crear un Pull Request en el [repositorio de GitHub](https://github.com/Elemma00/imgpedia_backend) para que un administrador lo revise, apruebe y realice el merge, así como la actualización de la imagen en Docker Hub.
+
+2. Si ya tienes permisos en el repositorio de Docker Hub, para subir los cambios y actualizar la imagen de Docker hub, asegurate de tener instalado Docker en tu sistema y estar logeado usando el comando
+
+```sh
+docker login
+```
+
+---
 
 ## Endpoints disponibles
 
@@ -120,7 +152,7 @@ Puedes consultar el estado de la carga utilizando el endpoint `/api/data/status`
 
 ## Contacto
 
-Para dudas o contribuciones, contacta a los desarrolladores del proyecto ImgPedia.
+Para dudas o contribuciones, contacta a los desarrolladores del proyecto IMGpedia.
 
 ---
 
