@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   imgpedia_backend:
-    container_name: imgpedia_backend_container 
+    container_name: imgpedia_backend
     build: .
     image: elemma00/imgpedia_backend:latest
     restart: unless-stopped
