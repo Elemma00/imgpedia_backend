@@ -21,6 +21,16 @@ jobs:
           docker build -t elemma00/imgpedia_backend:latest .
           docker push elemma00/imgpedia_backend:latest
 
+      - name: Copiar docker-compose.yml al servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "docker-compose.yml"
+          target: "/home/efaundez/imgpedia_backend/"
+
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
