@@ -34,7 +34,7 @@ public class SparqlService {
 
     private final Model rdfModel;
    
-    private final ConcurrentHashMap<String, Map.Entry<QueryExecution, CompletableFuture<ResultSet>>> activeQueries = new ConcurrentHashMap<>();
+    public final ConcurrentHashMap<String, Map.Entry<QueryExecution, CompletableFuture<ResultSet>>> activeQueries = new ConcurrentHashMap<>();
 
     public SparqlService(@Qualifier("rdfModel") Model rdfModel) {
         this.rdfModel = rdfModel;

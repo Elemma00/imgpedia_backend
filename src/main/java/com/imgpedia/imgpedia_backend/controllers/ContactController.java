@@ -14,6 +14,8 @@ import com.imgpedia.imgpedia_backend.controllers.interfaces.ContactApi;
 @RequestMapping("api/contact")
 public class ContactController implements ContactApi{
 
+    // TODO: Implement the mailSender and some SMTP configuration  
+
     // @Autowired
     private JavaMailSender mailSender;
 
@@ -24,7 +26,7 @@ public class ContactController implements ContactApi{
         String message = payload.getOrDefault("message", "");
         try {
             SimpleMailMessage mailMessage = new SimpleMailMessage();
-            mailMessage.setTo("faundez76@gmail.com"); // Cambia por el correo de destino real
+            mailMessage.setTo("nohay"); // Cambia por el correo de destino real
             mailMessage.setSubject("Nuevo mensaje de contacto de IMGpedia");
             mailMessage.setText("Nombre: " + name + "\nEmail: " + email + "\nMensaje:\n" + message);
 
