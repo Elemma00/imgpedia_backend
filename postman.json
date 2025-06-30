@@ -1,0 +1,794 @@
+{
+	"info": {
+		"_postman_id": "0ff16665-c598-4990-88aa-a146c9525128",
+		"name": "IMGpedia Endpoint testing",
+		"description": "Consultas para probar los endpoints de IMGpedia tanto en ambiente local como en producción.\n\nOBS: para el ambiente de producción usar usuarios reales para los endpoint que requieren autenticación",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "32057413"
+	},
+	"item": [
+		{
+			"name": "Production Env",
+			"item": [
+				{
+					"name": "Subir archivo RDF Copy",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/faund/Desktop/Memoria_components/imgpedia_backend/rdfs/imgpedia.ttl"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://imgpedia.dcc.uchile.cl/api/data/upload",
+							"protocol": "https",
+							"host": [
+								"imgpedia",
+								"dcc",
+								"uchile",
+								"cl"
+							],
+							"path": [
+								"api",
+								"data",
+								"upload"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Estado de Subida Copy",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://imgpedia.dcc.uchile.cl/api/data/status?uploadId=5380d9cd-df9a-4809-8b9b-ab3209f48c15",
+							"protocol": "https",
+							"host": [
+								"imgpedia",
+								"dcc",
+								"uchile",
+								"cl"
+							],
+							"path": [
+								"api",
+								"data",
+								"status"
+							],
+							"query": [
+								{
+									"key": "uploadId",
+									"value": "5380d9cd-df9a-4809-8b9b-ab3209f48c15"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Consulta Federada Copy",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"PREFIX sim: <http://sj.dcc.uchile.cl/sim#>\\nPREFIX imo: <http://imgpedia.dcc.uchile.cl/ontology#>\\nPREFIX wd: <http://www.wikidata.org/entity/>\\nPREFIX wdt: <http://www.wikidata.org/prop/direct/>\\nPREFIX wikibase: <http://wikiba.se/ontology#>\\nPREFIX bd: <http://www.bigdata.com/rdf#>\\n\\nSELECT ?country ?lifeExpectancy ?hdi ?isoCode ?c WHERE {\\n   SERVICE <https://query.wikidata.org/sparql>{ \\n  ?country wdt:P31 wd:Q6256 ;            \\n           wdt:P2250 ?lifeExpectancy ;   \\n           wdt:P297 ?isoCode ;           \\n           wdt:P1081 ?hdi .  # IDH \\n  BIND(?hdi * 10 AS ?scaledHDI)\\n  SERVICE wikibase:label { bd:serviceParam wikibase:language \\\"[AUTO_LANGUAGE],es\\\". }\\n  }\\n} CLUSTER BY ?lifeExpectancy ?hdi WITH sim:kmeans(4) AS ?c\",\n  \"format\": \"json\",\n  \"timeout\": 0\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://imgpedia.dcc.uchile.cl/api/sparql/query",
+							"protocol": "https",
+							"host": [
+								"imgpedia",
+								"dcc",
+								"uchile",
+								"cl"
+							],
+							"path": [
+								"api",
+								"sparql",
+								"query"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Consulta estándar Copy",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 100\",\n  \"format\": \"json\",\n  \"timeout\": 0,\n  \"clientQueryId\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://imgpedia.dcc.uchile.cl/api/sparql/query",
+							"protocol": "https",
+							"host": [
+								"imgpedia",
+								"dcc",
+								"uchile",
+								"cl"
+							],
+							"path": [
+								"api",
+								"sparql",
+								"query"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logearse Copy",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"username\":\"admin\",\"password\":\"admin\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://imgpedia.dcc.uchile.cl/api/auth/login",
+							"protocol": "https",
+							"host": [
+								"imgpedia",
+								"dcc",
+								"uchile",
+								"cl"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Usuario (Token Bearer Requerido) Copy",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ2NTU2MDUyLCJleHAiOjE3NDY2NDI0NTJ9.MHPhQotkBViIp-xHjceBY8zp3qpirYuWeJjnYFRq0aA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer TU_TOKEN_JWT"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n         \"username\": \"nuevo_usuario\",\n         \"password\": \"contraseña123\",\n         \"email\": \"nuevo@imgpedia.org\",\n         \"role\": \"USER\"\n     }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://imgpedia.dcc.uchile.cl/api/admin/create",
+							"protocol": "https",
+							"host": [
+								"imgpedia",
+								"dcc",
+								"uchile",
+								"cl"
+							],
+							"path": [
+								"api",
+								"admin",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cambiar Rol (Token Bearer Requerido) Copy",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ2NTU2MDUyLCJleHAiOjE3NDY2NDI0NTJ9.MHPhQotkBViIp-xHjceBY8zp3qpirYuWeJjnYFRq0aA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer TU_TOKEN_JWT"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"nuevo_usuario\",\n    \"role\": \"ADMIN\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://imgpedia.dcc.uchile.cl/api/admin/role",
+							"protocol": "https",
+							"host": [
+								"imgpedia",
+								"dcc",
+								"uchile",
+								"cl"
+							],
+							"path": [
+								"api",
+								"admin",
+								"role"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Habilitar/Deshabilitar usuario Copy",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ2NTU3ODk0LCJleHAiOjE3NDY2NDQyOTR9.NIYgednZrY7tcyAlvn6AszIeq2kLulX1b7SLz0dREJo",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "",
+								"disabled": true
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"enabled\": true}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://imgpedia.dcc.uchile.cl/api/admin/users/user/status",
+							"protocol": "https",
+							"host": [
+								"imgpedia",
+								"dcc",
+								"uchile",
+								"cl"
+							],
+							"path": [
+								"api",
+								"admin",
+								"users",
+								"user",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cambio de Contraseña Copy",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ3MTYyMTMxLCJleHAiOjE3NDcyNDg1MzF9.CEuxqObSKyrxSuogc2utPk8lw8s87mebwrstIE9GSKw",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer TU_TOKEN_JWT_AQUI"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"password\": \"testing\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://imgpedia.dcc.uchile.cl/api/admin/users/admin/password",
+							"protocol": "https",
+							"host": [
+								"imgpedia",
+								"dcc",
+								"uchile",
+								"cl"
+							],
+							"path": [
+								"api",
+								"admin",
+								"users",
+								"admin",
+								"password"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Local Env",
+			"item": [
+				{
+					"name": "Subir archivo RDF",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/faund/Desktop/Memoria_components/imgpedia_backend/rdfs/imgpedia.ttl"
+								}
+							]
+						},
+						"url": {
+							"raw": "localhost:8081/api/data/upload",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"data",
+								"upload"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Estado de Subida",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:8081/api/data/status?uploadId=5380d9cd-df9a-4809-8b9b-ab3209f48c15",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"data",
+								"status"
+							],
+							"query": [
+								{
+									"key": "uploadId",
+									"value": "5380d9cd-df9a-4809-8b9b-ab3209f48c15"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Consulta Federada",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"PREFIX sim: <http://sj.dcc.uchile.cl/sim#>\\nPREFIX imo: <http://imgpedia.dcc.uchile.cl/ontology#>\\nPREFIX wd: <http://www.wikidata.org/entity/>\\nPREFIX wdt: <http://www.wikidata.org/prop/direct/>\\nPREFIX wikibase: <http://wikiba.se/ontology#>\\nPREFIX bd: <http://www.bigdata.com/rdf#>\\n\\nSELECT ?country ?lifeExpectancy ?hdi ?isoCode ?c WHERE {\\n   SERVICE <https://query.wikidata.org/sparql>{ \\n  ?country wdt:P31 wd:Q6256 ;            \\n           wdt:P2250 ?lifeExpectancy ;   \\n           wdt:P297 ?isoCode ;           \\n           wdt:P1081 ?hdi .  # IDH \\n  BIND(?hdi * 10 AS ?scaledHDI)\\n  SERVICE wikibase:label { bd:serviceParam wikibase:language \\\"[AUTO_LANGUAGE],es\\\". }\\n  }\\n} CLUSTER BY ?lifeExpectancy ?hdi WITH sim:kmeans(4) AS ?c\",\n  \"format\": \"json\",\n  \"timeout\": 0\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8081/api/sparql/query",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"sparql",
+								"query"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Consulta estándar",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"query\": \"SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 100\",\n  \"format\": \"json\",\n  \"timeout\": 0,\n  \"clientQueryId\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:8081/api/sparql/query",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"sparql",
+								"query"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logearse",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"username\":\"admin\",\"password\":\"admin\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8081/api/auth/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Usuario (Token Bearer Requerido)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ2NTU2MDUyLCJleHAiOjE3NDY2NDI0NTJ9.MHPhQotkBViIp-xHjceBY8zp3qpirYuWeJjnYFRq0aA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer TU_TOKEN_JWT"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n         \"username\": \"nuevo_usuario\",\n         \"password\": \"contraseña123\",\n         \"email\": \"nuevo@imgpedia.org\",\n         \"role\": \"USER\"\n     }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8081/api/admin/create",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"admin",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cambiar Rol (Token Bearer Requerido)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ2NTU2MDUyLCJleHAiOjE3NDY2NDI0NTJ9.MHPhQotkBViIp-xHjceBY8zp3qpirYuWeJjnYFRq0aA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer TU_TOKEN_JWT"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"nuevo_usuario\",\n    \"role\": \"ADMIN\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8081/api/admin/role",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"admin",
+								"role"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Habilitar/Deshabilitar usuario",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ2NTU3ODk0LCJleHAiOjE3NDY2NDQyOTR9.NIYgednZrY7tcyAlvn6AszIeq2kLulX1b7SLz0dREJo",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "",
+								"disabled": true
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"enabled\": true}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8081/api/admin/users/user/status",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"admin",
+								"users",
+								"user",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cambio de Contraseña",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfQURNSU4iXSwiaWF0IjoxNzQ3MTYyMTMxLCJleHAiOjE3NDcyNDg1MzF9.CEuxqObSKyrxSuogc2utPk8lw8s87mebwrstIE9GSKw",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer TU_TOKEN_JWT_AQUI"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"password\": \"testing\"}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8081/api/admin/users/admin/password",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8081",
+							"path": [
+								"api",
+								"admin",
+								"users",
+								"admin",
+								"password"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer"
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
