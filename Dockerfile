@@ -30,9 +30,8 @@ COPY --from=builder /app/imgpedia_backend/target/*.jar .
 RUN apk add --no-cache curl tar bash coreutils
 
 # OJO IMPORTANTE: Si salio otra version nueva, cambienla a la más nueva o cambien el link a la versión que quieran usar pero usa link de archivados de jena
-ENV JENA_VERSION=5.4.0
-RUN curl -L https://dlcdn.apache.org/jena/binaries/apache-jena-${JENA_VERSION}.tar.gz | tar xz -C /opt \
-    && ln -s /opt/apache-jena-${JENA_VERSION} /opt/jena
+COPY --chown=root:root /home/efaundez/apache-jena-5.2.0 /opt/apache-jena-5.2.0
+RUN ln -s /opt/apache-jena-5.2.0 /opt/jena
 
 # Instala jq
 RUN wget -O /usr/local/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 \
@@ -40,7 +39,7 @@ RUN wget -O /usr/local/bin/jq https://github.com/jqlang/jq/releases/download/jq-
 
 # Asegura que JAVA_HOME y el PATH estén bien para Jena y Java
 ENV JAVA_HOME="/usr/lib/jvm/default-jvm"
-ENV PATH="/opt/jena/bin:/opt/apache-jena-5.4.0/bin:/usr/local/bin:${PATH}"
+ENV PATH="/opt/jena/bin:/opt/apache-jena-5.2.0/bin:/usr/local/bin:${PATH}"
 
 ENV PORT 8081
 
