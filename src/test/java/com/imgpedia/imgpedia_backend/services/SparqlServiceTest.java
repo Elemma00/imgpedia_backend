@@ -2,6 +2,7 @@ package com.imgpedia.imgpedia_backend.services;
 
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.jena.query.Dataset;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
@@ -36,13 +37,16 @@ class SparqlServiceTest {
     @Mock
     private Model mockModel;
 
+    @Mock
+    private Dataset mockDataset;
+
     @InjectMocks
     private SparqlService sparqlService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        sparqlService = new SparqlService(mockModel);
+        sparqlService = new SparqlService(mockModel, mockDataset);
     }
 
     @Test
