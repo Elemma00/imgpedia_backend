@@ -29,8 +29,9 @@ COPY --from=builder /app/imgpedia_backend/target/*.jar .
 
 RUN apk add --no-cache curl tar bash coreutils
 
-COPY apache-jena-5.2.0 /opt/apache-jena-5.2.0
-RUN ln -s /opt/apache-jena-5.2.0 /opt/jena
+RUN curl -L https://archive.apache.org/dist/jena/binaries/apache-jena-fuseki-5.2.0.tar.gz | tar xz -C /opt && \
+    mv /opt/apache-jena-fuseki-5.2.0 /opt/apache-jena-5.2.0 && \
+    ln -s /opt/apache-jena-5.2.0 /opt/jena
 
 # Instala jq
 RUN wget -O /usr/local/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 \
