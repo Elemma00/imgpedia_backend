@@ -9,10 +9,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.jena.query.Dataset;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QueryFactory;
+import org.apache.jena.query.ReadWrite;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFactory;
 import org.apache.jena.query.Syntax;
@@ -33,11 +35,14 @@ import com.imgpedia.imgpedia_backend.utils.MessagesLogs;
 public class SparqlService {
 
     private final Model rdfModel;
+
+    private final Dataset rdfDataset;
    
     public final ConcurrentHashMap<String, Map.Entry<QueryExecution, CompletableFuture<ResultSet>>> activeQueries = new ConcurrentHashMap<>();
 
-    public SparqlService(@Qualifier("rdfModel") Model rdfModel) {
+    public SparqlService(@Qualifier("rdfModel") Model rdfModel, @Qualifier("rdfDataset") Dataset rdfDataset) {
         this.rdfModel = rdfModel;
+        this.rdfDataset = rdfDataset;
     }
 
    public ResultSet executeQuery(SparqlQueryDTO queryDTO) throws InterruptedException, ExecutionException, TimeoutException {
@@ -50,7 +55,7 @@ public class SparqlService {
 
         QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel);
         CompletableFuture<ResultSet> future = CompletableFuture.supplyAsync(() -> {
-        rdfModel.begin();
+        rdfDataset.begin(ReadWrite.READ);
         try {
             return copyResults(qexec.execSelect());
         } catch (Exception e) {
@@ -60,7 +65,7 @@ public class SparqlService {
             }
             throw new RuntimeException(e);
         } finally {
-            rdfModel.close();
+            rdfDataset.end();
         }
     });
 
