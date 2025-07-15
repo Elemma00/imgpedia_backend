@@ -29,8 +29,7 @@ COPY --from=builder /app/imgpedia_backend/target/*.jar .
 
 RUN apk add --no-cache curl tar bash coreutils
 
-# OJO IMPORTANTE: Si salio otra version nueva, cambienla a la más nueva o cambien el link a la versión que quieran usar pero usa link de archivados de jena
-COPY --chown=root:root /home/efaundez/apache-jena-5.2.0 /opt/apache-jena-5.2.0
+COPY apache-jena-5.2.0 /opt/apache-jena-5.2.0
 RUN ln -s /opt/apache-jena-5.2.0 /opt/jena
 
 # Instala jq
