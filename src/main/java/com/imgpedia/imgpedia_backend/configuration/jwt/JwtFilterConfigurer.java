@@ -10,7 +10,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * Configures the JWT filter for Spring Security.
  * This class is responsible for adding the JWT filter to the security chain.
  */
-public class JwtFilterConfigurer extends  SecurityConfigurerAdapter<DefaultSecurityFilterChain, HttpSecurity>{
+public class JwtFilterConfigurer extends SecurityConfigurerAdapter<DefaultSecurityFilterChain, HttpSecurity>{
     private final JwtTokenProvider jwtTokenProvider;
 
     public JwtFilterConfigurer(JwtTokenProvider jwtTokenProvider) {

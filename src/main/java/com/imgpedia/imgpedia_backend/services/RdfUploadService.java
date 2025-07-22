@@ -53,25 +53,25 @@ public class RdfUploadService {
     @Autowired
     private UserService userService;
 
-    private String uploadDir = "/imgpedia/temp_extraction";
+    private static final String UPLOAD_DIR = "/imgpedia/temp_extraction";
+    private static final int BATCH_SIZE = 10000;
 
     private final Map<String, Map<String, Object>> uploadStatus = new ConcurrentHashMap<>();
 
     public RdfUploadService() {}
 
+    /**
+     * Initializes the upload directory after bean construction.
+     */
     @PostConstruct
     public void init() {
         try {
-            File uploadPath = new File(uploadDir);
-            if (!uploadPath.exists()) {
-                if (!uploadPath.mkdirs()) {
-                    ImgpediaLogger.error(MessagesLogs.UPLOAD_DIR_CREATE_FAILED + uploadDir);
-                } else {
-                    ImgpediaLogger.info(MessagesLogs.UPLOAD_DIR_CREATED + uploadDir);
-                    cleanUploadDirectory(uploadPath);
-                }
+            File uploadPath = new File(UPLOAD_DIR);
+            if (!uploadPath.exists() && !uploadPath.mkdirs()) {
+                ImgpediaLogger.error(MessagesLogs.UPLOAD_DIR_CREATE_FAILED + UPLOAD_DIR);
             } else {
-                ImgpediaLogger.info(MessagesLogs.UPLOAD_DIR_EXISTING + uploadDir);
+                ImgpediaLogger.info(MessagesLogs.UPLOAD_DIR_CREATED + UPLOAD_DIR);
+                cleanUploadDirectory(uploadPath);
             }
         } catch (Exception e) {
             ImgpediaLogger.error(MessagesLogs.UPLOAD_SERVICE_INIT_ERROR + e.getMessage());
@@ -79,7 +79,7 @@ public class RdfUploadService {
     }
 
     /**
-     * Processes an uploaded file and updates the progress status
+     * Processes an uploaded file and updates the progress status.
      * @param file The uploaded file
      * @param uploadId Unique ID for the upload
      * @param targetFileName Temporary file name
@@ -87,24 +87,23 @@ public class RdfUploadService {
      */
     public boolean processUploadedFile(MultipartFile file, String uploadId, String targetFileName) {
         File tempFile = null;
-
         try {
             updateUploadStatus(uploadId, "processing", MessagesLogs.PROCESSING_STARTING);
             updateUploadStatus(uploadId, "progress", 10);
-            
-            File uploadPath = new File(uploadDir);
-            if (!createDirectoryIfNotExists(uploadPath, uploadId)) {
+
+            File uploadPath = new File(UPLOAD_DIR);
+            if (!ensureDirectoryExists(uploadPath, uploadId)) {
                 return false;
             }
-            
+
             tempFile = saveFileToDirectory(file, targetFileName, uploadId);
             if (tempFile == null) {
                 return false;
             }
-    
-            boolean success = processFileBasedOnType(tempFile, targetFileName, uploadId);
+
+            boolean success = processFileByType(tempFile, targetFileName, uploadId);
             updateFinalStatus(success, uploadId, targetFileName);
-            
+
             return success;
         } catch (Exception e) {
             String errorMsg = MessagesLogs.PROCESSING_ERROR + e.getMessage();
@@ -112,11 +111,14 @@ public class RdfUploadService {
             updateUploadStatus(uploadId, "failed", errorMsg);
             return false;
         } finally {
-            cleanupTempFile(tempFile);
+            deleteTempFile(tempFile);
         }
     }
 
-    private boolean createDirectoryIfNotExists(File directory, String uploadId) {
+    /**
+     * Ensures the directory exists, creating it if necessary.
+     */
+    private boolean ensureDirectoryExists(File directory, String uploadId) {
         if (!directory.exists() && !directory.mkdirs()) {
             updateUploadStatus(uploadId, "failed", MessagesLogs.DIR_CREATE_ERROR);
             return false;
@@ -124,9 +126,12 @@ public class RdfUploadService {
         return true;
     }
 
+    /**
+     * Saves the uploaded file to the target directory.
+     */
     private File saveFileToDirectory(MultipartFile file, String targetFileName, String uploadId) {
         try {
-            File tempFile = new File(uploadDir, targetFileName);
+            File tempFile = new File(UPLOAD_DIR, targetFileName);
             try (FileOutputStream fos = new FileOutputStream(tempFile)) {
                 fos.write(file.getBytes());
             }
@@ -139,7 +144,10 @@ public class RdfUploadService {
         }
     }
 
-    private boolean processFileBasedOnType(File tempFile, String targetFileName, String uploadId) {
+    /**
+     * Processes the file based on its type (compressed or RDF).
+     */
+    private boolean processFileByType(File tempFile, String targetFileName, String uploadId) {
         if (targetFileName.endsWith(".tar.gz")) {
             ImgpediaLogger.info(MessagesLogs.PROCESSING_COMPRESSED_FILE + targetFileName);
             updateUploadStatus(uploadId, "processing", MessagesLogs.PROCESSING_COMPRESSED);
@@ -154,6 +162,9 @@ public class RdfUploadService {
         }
     }
 
+    /**
+     * Updates the final status of the upload.
+     */
     private void updateFinalStatus(boolean success, String uploadId, String targetFileName) {
         if (success) {
             updateUploadStatus(uploadId, "completed", 100);
@@ -164,22 +175,24 @@ public class RdfUploadService {
         }
     }
 
-    private void cleanupTempFile(File tempFile) {
-        if (tempFile != null && tempFile.exists()) {
-            if (tempFile.delete()) {
-                ImgpediaLogger.info(MessagesLogs.TEMP_FILE_DELETED + tempFile.getName());
-            } else {
-                ImgpediaLogger.warn(MessagesLogs.TEMP_FILE_DELETE_FAILED + tempFile.getAbsolutePath());
-            }
+    /**
+     * Deletes the temporary file if it exists.
+     */
+    private void deleteTempFile(File tempFile) {
+        if (tempFile != null && tempFile.exists() && !tempFile.delete()) {
+            ImgpediaLogger.warn(MessagesLogs.TEMP_FILE_DELETE_FAILED + tempFile.getAbsolutePath());
         }
     }
 
+    /**
+     * Processes a single RDF file and loads its content into the dataset.
+     */
     private boolean processRdfFile(File file, String uploadId) {
         try (InputStream inputStream = new FileInputStream(file)) {
             ImgpediaLogger.info(MessagesLogs.LOADING_RDF_FILE + file.getAbsolutePath());
             updateUploadStatus(uploadId, "processing", MessagesLogs.LOADING_RDF);
             updateUploadStatus(uploadId, "progress", 40);
-            
+
             return loadRdfIntoDataset(file, inputStream, uploadId);
         } catch (Exception e) {
             ImgpediaLogger.error(MessagesLogs.FILE_READ_ERROR + e.getMessage());
@@ -188,30 +201,33 @@ public class RdfUploadService {
         }
     }
 
+    /**
+     * Loads RDF data into the dataset within a transaction.
+     */
     private boolean loadRdfIntoDataset(File file, InputStream inputStream, String uploadId) {
         dataset.begin(ReadWrite.WRITE);
         try {
             updateUploadStatus(uploadId, "processing", MessagesLogs.PARSING_ENCODING);
             updateUploadStatus(uploadId, "progress", 50);
-            
+
             Model tempModel = ModelFactory.createDefaultModel();
-            
+
             RDFParser.create()
                     .source(inputStream)
                     .lang(RDFLanguages.filenameToLang(file.getName()))
                     .errorHandler(createErrorHandler())
                     .parse(new EncodeIRI(tempModel));
-            
+
             updateUploadStatus(uploadId, "processing", MessagesLogs.FILE_PARSED);
             updateUploadStatus(uploadId, "progress", 70);
-            
+
             addTriplesToModel(tempModel, uploadId);
-            
+
             dataset.commit();
             ImgpediaLogger.info(MessagesLogs.RDF_FILE_LOADED + file.getName());
             updateUploadStatus(uploadId, "processing", MessagesLogs.DATA_SAVED);
             updateUploadStatus(uploadId, "progress", 95);
-            
+
             return true;
         } catch (Exception e) {
             if (dataset.isInTransaction()) {
@@ -227,43 +243,44 @@ public class RdfUploadService {
         }
     }
 
+    /**
+     * Adds triples from a temporary model to the main model in batches.
+     */
     private void addTriplesToModel(Model tempModel, String uploadId) {
         long totalTriples = tempModel.size();
         long triplesAdded = 0;
-        int batchSize = 10000;
-        
+
         StmtIterator stmtIter = tempModel.listStatements();
         while (stmtIter.hasNext()) {
-            for (int i = 0; i < batchSize && stmtIter.hasNext(); i++) {
+            for (int i = 0; i < BATCH_SIZE && stmtIter.hasNext(); i++) {
                 model.add(stmtIter.next());
                 triplesAdded++;
             }
-            
-            int progressPercent = (int)((triplesAdded * 20 / totalTriples) + 70); // 70% to 90%
+            int progressPercent = (int) ((triplesAdded * 20 / totalTriples) + 70); // 70% to 90%
             updateUploadStatus(uploadId, "progress", Math.min(progressPercent, 90));
             updateUploadStatus(uploadId, "processing", MessagesLogs.PROCESSING_TRIPLES + triplesAdded + "/" + totalTriples);
         }
     }
 
+    /**
+     * Processes a compressed tar.gz file containing RDF files.
+     */
     private boolean processCompressedFile(File compressedFile, String uploadId) {
         ImgpediaLogger.info(MessagesLogs.PROCESSING_COMPRESSED_FILE + compressedFile.getAbsolutePath());
         boolean overallSuccess = true;
-        
-        File tempDir = new File(uploadDir, "temp_" + uploadId);
+
+        File tempDir = new File(UPLOAD_DIR, "temp_" + uploadId);
         if (!tempDir.exists() && !tempDir.mkdirs()) {
             ImgpediaLogger.error(MessagesLogs.TEMP_DIR_CREATE_ERROR + tempDir.getAbsolutePath());
             return false;
         }
-        
+
         try {
-            int[] fileCounts = countTarEntries(compressedFile);
-            int totalEntries = fileCounts[0];
-            
+            int totalEntries = countTarEntries(compressedFile);
             if (totalEntries == 0) {
                 ImgpediaLogger.warn(MessagesLogs.NO_VALID_ENTRIES);
                 return false;
             }
-            
             overallSuccess = processTarEntries(compressedFile, tempDir, totalEntries, uploadId);
         } catch (Exception e) {
             overallSuccess = false;
@@ -271,17 +288,17 @@ public class RdfUploadService {
         } finally {
             deleteDirectory(tempDir);
         }
-        
         return overallSuccess;
     }
 
-    private int[] countTarEntries(File compressedFile) throws Exception {
+    /**
+     * Counts the number of valid RDF files in the tar.gz archive.
+     */
+    private int countTarEntries(File compressedFile) throws Exception {
         int validFiles = 0;
-        
         try (FileInputStream fis = new FileInputStream(compressedFile);
              GzipCompressorInputStream gzis = new GzipCompressorInputStream(fis);
              TarArchiveInputStream tais = new TarArchiveInputStream(gzis)) {
-            
             TarArchiveEntry entry;
             while ((entry = tais.getNextTarEntry()) != null) {
                 if (!entry.isDirectory() && entry.getName().endsWith(".ttl")) {
@@ -289,60 +306,60 @@ public class RdfUploadService {
                 }
             }
         }
-        
-        return new int[] { validFiles };
+        return validFiles;
     }
 
+    /**
+     * Processes each RDF file entry in the tar.gz archive.
+     */
     private boolean processTarEntries(File compressedFile, File tempDir, int totalEntries, String uploadId) throws Exception {
         boolean overallSuccess = true;
         int processedEntries = 0;
-        
+
         try (FileInputStream fis = new FileInputStream(compressedFile);
              GzipCompressorInputStream gzis = new GzipCompressorInputStream(fis);
              TarArchiveInputStream tais = new TarArchiveInputStream(gzis)) {
-            
+
             TarArchiveEntry entry;
             while ((entry = tais.getNextTarEntry()) != null) {
                 if (entry.isDirectory() || !entry.getName().endsWith(".ttl")) {
                     continue;
                 }
-                
+
                 File tempFile = extractEntryToTempFile(entry, tais, tempDir);
                 if (tempFile != null) {
                     boolean entrySuccess = processTemporaryFile(tempFile, entry.getName());
                     if (!entrySuccess) {
                         overallSuccess = false;
                     }
-                    
                     processedEntries++;
                     updateProgressForCompressedFile(uploadId, processedEntries, totalEntries);
-                    
                     if (!tempFile.delete()) {
                         ImgpediaLogger.warn(MessagesLogs.TEMP_FILE_DELETE_WARNING + tempFile.getAbsolutePath());
                     }
                 }
             }
         }
-        
         return overallSuccess;
     }
 
+    /**
+     * Extracts a tar entry to a temporary file.
+     */
     private File extractEntryToTempFile(TarArchiveEntry entry, TarArchiveInputStream tais, File tempDir) throws Exception {
         String entryName = entry.getName();
         String sanitizedName = entryName.replaceAll("[^a-zA-Z0-9.-]", "_");
         File tempFile = new File(tempDir, "tarentry_" + sanitizedName);
-        
+
         try (FileOutputStream fos = new FileOutputStream(tempFile)) {
             byte[] buffer = new byte[8192];
             int bytesRead;
-            
             while ((bytesRead = tais.read(buffer)) != -1) {
                 fos.write(buffer, 0, bytesRead);
                 if (bytesRead < buffer.length) {
                     break;
                 }
             }
-            
             return tempFile;
         } catch (Exception e) {
             ImgpediaLogger.error(MessagesLogs.ENTRY_EXTRACT_ERROR + entryName + ": " + e.getMessage());
@@ -350,41 +367,45 @@ public class RdfUploadService {
         }
     }
 
+    /**
+     * Updates the progress for compressed file processing.
+     */
     private void updateProgressForCompressedFile(String uploadId, int processed, int total) {
         Map<String, Object> status = uploadStatus.get(uploadId);
         if (status != null) {
-            int progress = (int)(((double)processed / total) * 100);
+            int progress = (int) (((double) processed / total) * 100);
             status.put("progress", progress);
             status.put("processing", MessagesLogs.PROCESSING_ENTRY + processed + " of " + total);
         }
     }
 
+    /**
+     * Processes a temporary RDF file extracted from the archive.
+     */
     private boolean processTemporaryFile(File tempFile, String originalName) {
         dataset.begin(ReadWrite.WRITE);
         boolean success = false;
-        
+
         try (InputStream inputStream = new FileInputStream(tempFile)) {
             ImgpediaLogger.info(MessagesLogs.LOADING_ENTRY + originalName);
-        
+
             Model tempModel = ModelFactory.createDefaultModel();
-            
+
             RDFParser.create()
                     .source(inputStream)
                     .lang(RDFLanguages.TURTLE)
                     .errorHandler(createErrorHandler())
                     .parse(new EncodeIRI(tempModel));
-                    
-            int batchSize = 10000;
+
             int statementsAdded = 0;
-            
             StmtIterator stmtIter = tempModel.listStatements();
             while (stmtIter.hasNext()) {
-                for (int i = 0; i < batchSize && stmtIter.hasNext(); i++) {
+                for (int i = 0; i < BATCH_SIZE && stmtIter.hasNext(); i++) {
                     model.add(stmtIter.next());
                     statementsAdded++;
                 }
             }
-            
+
             dataset.commit();
             success = true;
             ImgpediaLogger.info(MessagesLogs.ENTRY_LOADED + originalName + " (" + statementsAdded + " statements)");
@@ -398,11 +419,14 @@ public class RdfUploadService {
                 dataset.end();
             }
         }
-        
         return success;
     }
 
-
+    /**
+     * Initializes the upload status for a new upload.
+     * @param uploadId The unique upload identifier
+     * @param fileName The file name being uploaded
+     */
     public void initializeUpload(String uploadId, String fileName) {
         Map<String, Object> statusInfo = new HashMap<>();
         statusInfo.put("status", "processing");
@@ -413,11 +437,17 @@ public class RdfUploadService {
         ImgpediaLogger.info(MessagesLogs.UPLOAD_INITIALIZED + uploadId);
     }
 
+    /**
+     * Updates the upload status for a given upload ID.
+     * @param uploadId The upload identifier
+     * @param status The new status
+     * @param details Additional details or progress
+     */
     public void updateUploadStatus(String uploadId, String status, Object details) {
         Map<String, Object> statusInfo = uploadStatus.getOrDefault(uploadId, new HashMap<>());
         statusInfo.put("status", status);
         statusInfo.put("lastUpdated", System.currentTimeMillis());
-        
+
         if (details != null) {
             if ("progress".equals(status)) {
                 statusInfo.put("progress", details);
@@ -429,7 +459,6 @@ public class RdfUploadService {
                 statusInfo.put("details", details);
             }
         }
-        
         uploadStatus.put(uploadId, statusInfo);
     }
 
@@ -439,14 +468,12 @@ public class RdfUploadService {
      */
     public Map<String, Object> getAllUploadStatuses() {
         Map<String, Object> allStatuses = new HashMap<>();
-        
         Map<String, Object> activeUploads = new HashMap<>();
         Map<String, Object> completedUploads = new HashMap<>();
         Map<String, Object> failedUploads = new HashMap<>();
-        
+
         uploadStatus.forEach((id, status) -> {
             String statusValue = (String) status.get("status");
-            
             if ("processing".equals(statusValue)) {
                 activeUploads.put(id, status);
             } else if ("completed".equals(statusValue)) {
@@ -455,24 +482,26 @@ public class RdfUploadService {
                 failedUploads.put(id, status);
             }
         });
-        
+
         allStatuses.put("total", uploadStatus.size());
         allStatuses.put("active", activeUploads);
         allStatuses.put("completed", completedUploads);
         allStatuses.put("failed", failedUploads);
-        
+
         return allStatuses;
     }
 
+    /**
+     * Cleans up old upload statuses every hour.
+     */
     @Scheduled(fixedRate = 3600000)
     public void cleanupOldUploadStatuses() {
         long now = System.currentTimeMillis();
-        long maxAge = 24 * 60 * 60 * 1000; 
+        long maxAge = 24 * 60 * 60 * 1000; // 24 hours
         List<String> idsToRemove = new ArrayList<>();
-        
+
         uploadStatus.forEach((id, status) -> {
             String statusValue = (String) status.get("status");
-            
             if ("completed".equals(statusValue) || "failed".equals(statusValue)) {
                 Long lastUpdated = (Long) status.get("lastUpdated");
                 if (lastUpdated != null && (now - lastUpdated > maxAge)) {
@@ -480,20 +509,29 @@ public class RdfUploadService {
                 }
             }
         });
-        
+
         for (String id : idsToRemove) {
             uploadStatus.remove(id);
         }
-        
+
         if (!idsToRemove.isEmpty()) {
             ImgpediaLogger.info("Cleaned up " + idsToRemove.size() + " old upload status records");
         }
     }
-    
+
+    /**
+     * Gets the upload status for a specific upload ID.
+     * @param uploadId The upload identifier
+     * @return The status map for the upload, or a not_found status if not present
+     */
     public Map<String, Object> getUploadStatusById(String uploadId) {
         return uploadStatus.getOrDefault(uploadId, Map.of("status", "not_found"));
     }
 
+    /**
+     * Gets the user service.
+     * @return The user service
+     */
     public UserService getUserService() {
         return userService;
     }

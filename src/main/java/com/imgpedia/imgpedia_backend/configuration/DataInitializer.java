@@ -15,55 +15,78 @@ import com.imgpedia.imgpedia_backend.repository.RoleRepository;
 import com.imgpedia.imgpedia_backend.repository.UserRepository;
 
 /**
- * * DataInitializer is a CommandLineRunner that initializes the database with default roles.
-*/
+ * Initializes the database with default roles and a super admin user.
+ * This class runs at application startup.
+ */
 @Component
 public class DataInitializer implements CommandLineRunner {
-    
-    @Autowired
-    private RoleRepository roleRepository;
 
-    @Autowired
-    private UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-    
     @Value("${admin}")
-    private String superAdminUser;
-    
-    @Value("${password}")
-    private String superAdminPass;
+    private String superAdminUsername;
 
+    @Value("${password}")
+    private String superAdminPassword;
+
+    @Autowired
+    public DataInitializer(RoleRepository roleRepository,
+                          UserRepository userRepository,
+                          PasswordEncoder passwordEncoder) {
+        this.roleRepository = roleRepository;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    /**
+     * Executes the initialization logic at application startup.
+     * Creates default roles and a super admin user if they do not exist.
+     *
+     * @param args command line arguments
+     */
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
         ImgpediaLogger.info("Initializing database with default roles and super admin user");
 
-        Role superAdminRole = createRoleIfNotExists("SUPERADMIN");
-        Role adminRole = createRoleIfNotExists("ADMIN");
-        Role userRole = createRoleIfNotExists("USER");
-        
- 
-        if (userRepository.findByUsername(superAdminUser).isEmpty()) {
-            User superadmin = new User();
-            superadmin.setUsername(superAdminUser);
-            superadmin.setPassword(passwordEncoder.encode(superAdminPass));
-            superadmin.setEmail("admin@imgpedia.org");
-            superadmin.setRoles(Collections.singleton(superAdminRole));
-            superadmin.setEnabled(true);
-            
-            userRepository.save(superadmin);
+        Role superAdminRole = ensureRoleExists("SUPERADMIN");
+        ensureRoleExists("ADMIN");
+        ensureRoleExists("USER");
+
+        createSuperAdminIfNotExists(superAdminRole);
+    }
+
+    /**
+     * Ensures a role with the given name exists in the database.
+     * If it does not exist, it is created.
+     *
+     * @param roleName the name of the role
+     * @return the existing or newly created Role
+     */
+    private Role ensureRoleExists(String roleName) {
+        return roleRepository.findByName(roleName)
+                .orElseGet(() -> roleRepository.save(new Role(roleName)));
+    }
+
+    /**
+     * Creates the super admin user if it does not already exist.
+     *
+     * @param superAdminRole the SUPERADMIN role to assign
+     */
+    private void createSuperAdminIfNotExists(Role superAdminRole) {
+        if (userRepository.findByUsername(superAdminUsername).isEmpty()) {
+            User superAdmin = new User();
+            superAdmin.setUsername(superAdminUsername);
+            superAdmin.setPassword(passwordEncoder.encode(superAdminPassword));
+            superAdmin.setEmail("admin@imgpedia.org");
+            superAdmin.setRoles(Collections.singleton(superAdminRole));
+            superAdmin.setEnabled(true);
+
+            userRepository.save(superAdmin);
             ImgpediaLogger.info("SuperAdmin user created successfully");
         } else {
             ImgpediaLogger.info("SuperAdmin user already exists");
         }
-    }
-    
-    private Role createRoleIfNotExists(String roleName) {
-        return roleRepository.findByName(roleName)
-                .orElseGet(() -> {
-                    Role newRole = new Role(roleName);
-                    return roleRepository.save(newRole);
-                });
     }
 }

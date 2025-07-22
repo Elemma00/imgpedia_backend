@@ -28,80 +28,108 @@ import com.imgpedia.imgpedia_backend.logger.ImgpediaLogger;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
+/**
+ * Configuration class for RDF data loading and TDB dataset management.
+ * Handles initialization, conversion, validation, and cleanup of RDF files.
+ */
 @Configuration
 public class RdfConfiguration {
 
-    private static final String DB = System.getenv("TDB_PATH") != null ?
-            System.getenv("TDB_PATH") :
-            System.getProperty("user.dir") + File.separator + "imgpedia_tdb";
-    private static final String TRACKER_FILE = DB + File.separator + "loaded_files.properties";
+    private static final String DB_PATH = System.getenv("TDB_PATH") != null
+            ? System.getenv("TDB_PATH")
+            : System.getProperty("user.dir") + File.separator + "imgpedia_tdb";
+    private static final String TRACKER_FILE = DB_PATH + File.separator + "loaded_files.properties";
+    private static final String EXPORTS_DIR = DB_PATH + File.separator + "exports";
+    private static final int THREAD_POOL_SIZE = 22;
+
     private Model model;
     private Dataset dataset;
     private RdfLoadTracker loadTracker;
 
     public RdfConfiguration() {}
 
+    /**
+     * Initializes the RDF model and dataset.
+     * Loads or creates the TDB dataset and prepares export directories.
+     */
     @PostConstruct
     public void initRdfModel() {
         ImgpediaLogger.info("Initializing RDF model...");
         this.loadTracker = new RdfLoadTracker(TRACKER_FILE);
 
-        File dbDir = new File(DB);
-        if (!dbDir.exists()) dbDir.mkdirs();
+        createDirectoryIfNotExists(DB_PATH);
+        createDirectoryIfNotExists(EXPORTS_DIR);
 
-        // Create export directory
-        String exportDir = DB + File.separator + "exports";
-        File exportDirectory = new File(exportDir);
-        if (!exportDirectory.exists()) {
-            exportDirectory.mkdirs();
-        }
+        List<File> rdfFiles = collectRdfFiles(getRdfDirectories());
+        ImgpediaLogger.info("Total IMGpedia files: " + rdfFiles.size());
 
-        // Get all files to process
-        String[] directories = getRdfDirectories();
-        List<File> allFiles = new ArrayList<>();
-        for (String directoryPath : directories) {
-            File dir = new File(directoryPath);
-            File[] files = dir.listFiles((dir1, name) ->
-            name.endsWith(".ttl") || name.endsWith(".rdf") || name.endsWith(".tar.gz"));
-            if (files != null) {
-            Collections.addAll(allFiles, files);
-            }
-        }
-        int totalFiles = allFiles.size();
-        ImgpediaLogger.info("Total IMGpedia files: " + totalFiles);
-
-        File tdbDir = new File(DB + File.separator + "tdb");
+        File tdbDir = new File(DB_PATH + File.separator + "tdb");
         if (tdbDir.exists()) {
             ImgpediaLogger.info("Found TDB, Skipping processing.");
-            this.dataset = TDB1Factory.createDataset(DB + File.separator + "tdb");
+            this.dataset = TDB1Factory.createDataset(tdbDir.getAbsolutePath());
             this.model = dataset.getDefaultModel();
             return;
-        } else {
-            String sanitizedDir = exportDir + File.separator + "sanitized";
-            // convertTtlToNTriplesWithCleaning(directories, exportDir, sanitizedDir);
-            // validateAllNtFilesWithXLoader(exportDir, sanitizedDir);
-            runTdb1XLoader();
         }
 
-        // Create an empty dataset for the beans
-        this.dataset = TDB1Factory.createDataset(DB + File.separator + "tdb");
+        // Uncomment to enable conversion and validation steps
+        // String sanitizedDir = EXPORTS_DIR + File.separator + "sanitized";
+        // convertTtlToNTriplesWithCleaning(getRdfDirectories(), EXPORTS_DIR, sanitizedDir);
+        // validateAllNtFilesWithXLoader(EXPORTS_DIR, sanitizedDir);
+        runTdb1XLoader();
+
+        this.dataset = TDB1Factory.createDataset(tdbDir.getAbsolutePath());
         this.model = dataset.getDefaultModel();
     }
 
-    private void printProgress(int current, int total, String etapa) {
-        int percent = (int) ((current * 100.0f) / total);
-        ImgpediaLogger.info("[" + etapa + "] Progress: " + current + "/" + total + " (" + percent + "%)");
-    }
-
+    /**
+     * Returns the directories containing RDF files.
+     */
     private String[] getRdfDirectories() {
         return new String[] {
-                "/nas_mount/imgpedia/resource/sim",
-                "/nas_mount/imgpedia/resource/img",
-                "/nas_mount/imgpedia/resource/wiki",
-                "/home/efaundez/sanitized",
+            "/nas_mount/imgpedia/resource/sim",
+            "/nas_mount/imgpedia/resource/img",
+            "/nas_mount/imgpedia/resource/wiki",
+            "/home/efaundez/sanitized",
         };
     }
 
+    /**
+     * Collects all RDF files (.ttl, .rdf, .tar.gz) from the given directories.
+     */
+    private List<File> collectRdfFiles(String[] directories) {
+        List<File> allFiles = new ArrayList<>();
+        for (String directoryPath : directories) {
+            File dir = new File(directoryPath);
+            File[] files = dir.listFiles((d, name) ->
+                name.endsWith(".ttl") || name.endsWith(".rdf") || name.endsWith(".tar.gz"));
+            if (files != null) {
+                Collections.addAll(allFiles, files);
+            }
+        }
+        return allFiles;
+    }
+
+    /**
+     * Creates a directory if it does not exist.
+     */
+    private void createDirectoryIfNotExists(String path) {
+        File dir = new File(path);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+    }
+
+    /**
+     * Prints progress information.
+     */
+    private void printProgress(int current, int total, String stage) {
+        int percent = (int) ((current * 100.0f) / total);
+        ImgpediaLogger.info("[" + stage + "] Progress: " + current + "/" + total + " (" + percent + "%)");
+    }
+
+    /**
+     * Creates a silent error handler for RDF parsing.
+     */
     public ErrorHandler createErrorHandler() {
         return new ErrorHandler() {
             @Override
@@ -113,6 +141,9 @@ public class RdfConfiguration {
         };
     }
 
+    /**
+     * Closes the dataset and releases resources.
+     */
     @PreDestroy
     public void closeDataset() {
         if (dataset != null) {
@@ -129,162 +160,153 @@ public class RdfConfiguration {
         }
     }
 
+    /**
+     * Converts .ttl files to N-Triples, cleans and validates them.
+     */
     private void convertTtlToNTriplesWithCleaning(String[] directories, String exportDir, String sanitizedDir) {
         ImgpediaLogger.info("Converting .ttl files to N-Triples with cleaning and riot validation...");
-        File outDirectory = new File(exportDir);
-        File sanitizedDirectory = new File(sanitizedDir);
-        if (!outDirectory.exists()) outDirectory.mkdirs();
-        if (!sanitizedDirectory.exists()) sanitizedDirectory.mkdirs();
+        createDirectoryIfNotExists(exportDir);
+        createDirectoryIfNotExists(sanitizedDir);
 
-        List<File> allFiles = new ArrayList<>();
+        List<File> ttlFiles = new ArrayList<>();
         for (String directoryPath : directories) {
             File dir = new File(directoryPath);
             File[] files = dir.listFiles((d, name) -> name.endsWith(".ttl"));
-            if (files != null) Collections.addAll(allFiles, files);
+            if (files != null) Collections.addAll(ttlFiles, files);
         }
 
-        final int THREADS = 22;
-        ExecutorService executor = Executors.newFixedThreadPool(THREADS);
-        final int totalFiles = allFiles.size();
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+        final int totalFiles = ttlFiles.size();
         final AtomicInteger processedCount = new AtomicInteger(0);
 
-        for (File file : allFiles) {
-            // Salta si ya existe el .nt correspondiente en el exportDir
-            String ntFilePath = new File(outDirectory, file.getName().replaceAll("\\.ttl$", ".nt")).getAbsolutePath();
+        for (File file : ttlFiles) {
+            String ntFilePath = new File(exportDir, file.getName().replaceAll("\\.ttl$", ".nt")).getAbsolutePath();
             File ntFile = new File(ntFilePath);
-            if (ntFile.exists()) {
-                ImgpediaLogger.info("Skipping already converted file: " + file.getName());
+
+            if (ntFile.exists() || loadTracker.isFileLoaded(file)) {
+                ImgpediaLogger.info("Skipping already processed file: " + file.getName());
                 printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
                 continue;
             }
 
-            synchronized (loadTracker) {
-                if (loadTracker.isFileLoaded(file)) {
-                    ImgpediaLogger.info("Skipping already loaded file: " + file.getName());
-                    printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
-                    continue;
-                }
-            }
-            executor.submit(() -> {
-                try {
-                    // 1. Limpia y parsea con EncodeIRI
-                    Model model = ModelFactory.createDefaultModel();
-                    boolean success = false;
-                    try (InputStream in = new FileInputStream(file)) {
-                        RDFParser.create()
-                            .source(in)
-                            .lang(Lang.TURTLE)
-                            .errorHandler(createErrorHandler())
-                            .parse(new EncodeIRI(model));
-                        success = true;
-                    } catch (Exception ex) {
-                        ImgpediaLogger.error("Error parsing TTL: " + file.getName() + " - " + ex.getMessage());
-                        reportBadFile(sanitizedDirectory, file.getName(), "Error parsing TTL: " + ex.getMessage());
-                        printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
-                        return;
-                    }
-
-                    if (!success || model.isEmpty()) {
-                        ImgpediaLogger.error("No triples after cleaning: " + file.getName());
-                        reportBadFile(sanitizedDirectory, file.getName(), "No triples after cleaning");
-                        printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
-                        return;
-                    }
-
-                    // 2. Escribe el modelo limpio a un archivo N-Triples
-                    try (FileOutputStream out = new FileOutputStream(ntFilePath)) {
-                        model.write(out, "N-TRIPLES");
-                    }
-
-                    // 3. Valida el archivo N-Triples usando riot --validate
-                    ProcessBuilder pbRiot = new ProcessBuilder(
-                        "riot", "--validate", ntFilePath
-                    );
-                    pbRiot.redirectErrorStream(true);
-                    Process processRiot = pbRiot.start();
-                    int exitCodeRiot = processRiot.waitFor();
-
-                    boolean riotOk = (exitCodeRiot == 0);
-                    if (!riotOk) {
-                        ImgpediaLogger.error("riot --validate failed: " + file.getName());
-                        reportBadFile(sanitizedDirectory, file.getName(), "riot --validate failed: exit code " + exitCodeRiot);
-                        // Borra el .nt si se creó
-                        File ntToDelete = new File(ntFilePath);
-                        if (ntToDelete.exists()) ntToDelete.delete();
-                        printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
-                        return;
-                    }
-
-                    // Marca como cargado el archivo TTL original
-                    synchronized (loadTracker) {
-                        loadTracker.markFileAsLoaded(file);
-                    }
-
-                    ImgpediaLogger.info("Archivo TTL limpiado y convertido exitosamente a N-Triples: " + ntFilePath);
-                    printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
-                } catch (Exception e) {
-                    ImgpediaLogger.error("Error procesando archivo TTL: " + e.getMessage());
-                    reportBadFile(sanitizedDirectory, file.getName(), "Exception: " + e.getMessage());
-                    printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
-                }
-            });
+            executor.submit(() -> processTtlFile(file, ntFilePath, sanitizedDir, processedCount, totalFiles));
         }
-        executor.shutdown();
+        shutdownExecutor(executor, "TTL->NT");
+    }
+
+    /**
+     * Processes a single .ttl file: cleans, converts, validates, and logs results.
+     */
+    private void processTtlFile(File file, String ntFilePath, String sanitizedDir,
+                                AtomicInteger processedCount, int totalFiles) {
         try {
-            executor.awaitTermination(Long.MAX_VALUE, java.util.concurrent.TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            ImgpediaLogger.error("Thread interrupted: " + e.getMessage());
-            Thread.currentThread().interrupt();
+            Model model = ModelFactory.createDefaultModel();
+            boolean success = false;
+            try (InputStream in = new FileInputStream(file)) {
+                RDFParser.create()
+                        .source(in)
+                        .lang(Lang.TURTLE)
+                        .errorHandler(createErrorHandler())
+                        .parse(new EncodeIRI(model));
+                success = true;
+            } catch (Exception ex) {
+                ImgpediaLogger.error("Error parsing TTL: " + file.getName() + " - " + ex.getMessage());
+                reportBadFile(sanitizedDir, file.getName(), "Error parsing TTL: " + ex.getMessage());
+                printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
+                return;
+            }
+
+            if (!success || model.isEmpty()) {
+                ImgpediaLogger.error("No triples after cleaning: " + file.getName());
+                reportBadFile(sanitizedDir, file.getName(), "No triples after cleaning");
+                printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
+                return;
+            }
+
+            try (FileOutputStream out = new FileOutputStream(ntFilePath)) {
+                model.write(out, "N-TRIPLES");
+            }
+
+            if (!validateWithRiot(ntFilePath)) {
+                ImgpediaLogger.error("riot --validate failed: " + file.getName());
+                reportBadFile(sanitizedDir, file.getName(), "riot --validate failed");
+                new File(ntFilePath).delete();
+                printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
+                return;
+            }
+
+            loadTracker.markFileAsLoaded(file);
+            ImgpediaLogger.info("File cleaned and converted to N-Triples: " + ntFilePath);
+            printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
+        } catch (Exception e) {
+            ImgpediaLogger.error("Error processing TTL file: " + e.getMessage());
+            reportBadFile(sanitizedDir, file.getName(), "Exception: " + e.getMessage());
+            printProgress(processedCount.incrementAndGet(), totalFiles, "TTL->NT");
         }
     }
 
-    private void reportBadFile(File sanitizedDirectory, String fileName, String errorMsg) {
+    /**
+     * Validates an N-Triples file using riot.
+     */
+    private boolean validateWithRiot(String ntFilePath) {
         try {
+            ProcessBuilder pb = new ProcessBuilder("riot", "--validate", ntFilePath);
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+            return exitCode == 0;
+        } catch (Exception e) {
+            ImgpediaLogger.error("Error running riot validation: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Reports a bad file by logging its name and error message.
+     */
+    private void reportBadFile(String sanitizedDir, String fileName, String errorMsg) {
+        try {
+            File reportFile = new File(sanitizedDir, "bad_ttl_files.txt");
             Files.write(
-                new File(sanitizedDirectory, "bad_ttl_files.txt").toPath(),
+                reportFile.toPath(),
                 (fileName + " :: " + errorMsg + System.lineSeparator()).getBytes(),
                 java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND
             );
         } catch (Exception ex) {
-            ImgpediaLogger.error("No se pudo escribir el reporte de error para " + fileName + ": " + ex.getMessage());
+            ImgpediaLogger.error("Could not write error report for " + fileName + ": " + ex.getMessage());
         }
     }
 
+    /**
+     * Runs tdb1.xloader to load all valid .nt files into the TDB dataset.
+     */
     public void runTdb1XLoader() {
-        String tdbLoc = "/nas_mount/imgpedia/imgpedia_tdb/tdb";
-        String exportDir = "/nas_mount/imgpedia/imgpedia_tdb/exports";
-        String sanitizedDir = exportDir + File.separator + "sanitized";
-        String logFile = DB + File.separator + "tdb1_xloader.log";
+        String tdbLoc = DB_PATH + File.separator + "tdb";
+        String sanitizedDir = EXPORTS_DIR + File.separator + "sanitized";
+        String logFile = DB_PATH + File.separator + "tdb1_xloader.log";
 
-        File exportDirectory = new File(exportDir);
+        File exportDirectory = new File(EXPORTS_DIR);
         File sanitizedDirectory = new File(sanitizedDir);
-        
-        // Busca recursivamente todos los archivos .nt EXCLUYENDO sanitized
+
         List<File> ntFiles = new ArrayList<>();
         findFilesRecursiveExcludingSanitized(exportDirectory, ntFiles, sanitizedDirectory);
 
         if (ntFiles.isEmpty()) {
-            ImgpediaLogger.error("No .nt files found in " + exportDir + " (excluding sanitized)");
+            ImgpediaLogger.error("No .nt files found in " + EXPORTS_DIR + " (excluding sanitized)");
             return;
         }
-
-        ImgpediaLogger.info("Found " + ntFiles.size() + " .nt files for xloader (excluding sanitized)");
 
         List<String> command = new ArrayList<>();
         command.add("tdb1.xloader");
         command.add("--loc=" + tdbLoc);
-
-        // Añade todos los archivos .nt limpios
-        for (File ntFile : ntFiles) {
-            command.add(ntFile.getAbsolutePath());
-        }
+        ntFiles.forEach(ntFile -> command.add(ntFile.getAbsolutePath()));
 
         ImgpediaLogger.info("Running tdb1.xloader with " + ntFiles.size() + " cleaned files");
 
-        ProcessBuilder pb = new ProcessBuilder(command);
-        pb.redirectErrorStream(true);
-        pb.redirectOutput(new File(logFile));
         try {
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.redirectErrorStream(true);
+            pb.redirectOutput(new File(logFile));
             Process process = pb.start();
             int exitCode = process.waitFor();
             if (exitCode == 0) {
@@ -297,23 +319,25 @@ public class RdfConfiguration {
         }
     }
 
+    /**
+     * Validates all .nt files using tdb1.xloader, moving corrupted files to sanitized.
+     */
     public void validateAllNtFilesWithXLoader(String exportDir, String sanitizedDir) {
-        ImgpediaLogger.info("Validando archivos .nt usando tdb1.xloader en " + exportDir + " ...");
+        ImgpediaLogger.info("Validating .nt files using tdb1.xloader in " + exportDir + " ...");
         File exportDirectory = new File(exportDir);
         File sanitizedDirectory = new File(sanitizedDir);
-        if (!sanitizedDirectory.exists()) sanitizedDirectory.mkdirs();
+        createDirectoryIfNotExists(sanitizedDir);
 
-        // Busca recursivamente todos los archivos .nt EXCLUYENDO sanitized
         List<File> ntFiles = new ArrayList<>();
         findFilesRecursiveExcludingSanitized(exportDirectory, ntFiles, sanitizedDirectory);
 
         if (ntFiles.isEmpty()) {
-            ImgpediaLogger.info("No .nt files to validate en " + exportDir + " (excluding sanitized)");
+            ImgpediaLogger.info("No .nt files to validate in " + exportDir + " (excluding sanitized)");
             return;
         }
 
-        final int THREADS = Runtime.getRuntime().availableProcessors();
-        ExecutorService executor = Executors.newFixedThreadPool(THREADS);
+        int threads = Runtime.getRuntime().availableProcessors();
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
         final int totalFiles = ntFiles.size();
         final AtomicInteger processedCount = new AtomicInteger(0);
         final AtomicInteger corruptedCount = new AtomicInteger(0);
@@ -321,160 +345,176 @@ public class RdfConfiguration {
 
         File errorLog = new File(sanitizedDirectory, "nt_xloader_validation_log.log");
         File validationDir = new File(sanitizedDirectory, "validation_temp");
-        if (!validationDir.exists()) validationDir.mkdirs();
+        createDirectoryIfNotExists(validationDir.getAbsolutePath());
 
-        ImgpediaLogger.info("Archivos .nt a validar con tdb2.xloader: " + totalFiles + " (excluyendo sanitized)");
+        ImgpediaLogger.info("Files to validate with tdb1.xloader: " + totalFiles);
 
         for (File ntFile : ntFiles) {
-            executor.submit(() -> {
-                boolean isCorrupted = false;
-                StringBuilder errorMsg = new StringBuilder();
-                String tempTdbDir = null;
-                String logFile = null;
-
-                try {
-                    // Crea directorio temporal único para esta validación
-                    tempTdbDir = new File(validationDir, "tdb_" + Thread.currentThread().getId() + "_" + System.currentTimeMillis()).getAbsolutePath();
-                    logFile = new File(validationDir, "xloader_" + ntFile.getName() + "_" + System.currentTimeMillis() + ".log").getAbsolutePath();
-
-                    // Ejecuta tdb1.xloader SOLO con este archivo
-                    List<String> command = new ArrayList<>();
-                    command.add("tdb1.xloader");
-                    command.add("--loc=" + tempTdbDir);
-                    command.add(ntFile.getAbsolutePath());
-
-                    ProcessBuilder pb = new ProcessBuilder(command);
-                    pb.redirectErrorStream(true);
-                    pb.redirectOutput(new File(logFile));
-
-                    Process process = pb.start();
-                    int exitCode = process.waitFor();
-
-                    if (exitCode != 0) {
-                        isCorrupted = true;
-                        try {
-                            String logContent = new String(Files.readAllBytes(new File(logFile).toPath()));
-                            errorMsg.append("tdb1.xloader validation failed (exit code: ")
-                                    .append(exitCode)
-                                    .append("): ")
-                                    .append(logContent.length() > 1000 ? logContent.substring(0, 1000) + "..." : logContent);
-                        } catch (Exception logEx) {
-                            errorMsg.append("tdb1.xloader validation failed with exit code: ")
-                                    .append(exitCode)
-                                    .append(" (could not read log: ")
-                                    .append(logEx.getMessage())
-                                    .append(")");
-                        }
-                    } else {
-                        okCount.incrementAndGet();
-                        ImgpediaLogger.info("Validated successfully: " + ntFile.getName());
-                    }
-                } catch (Exception ex) {
-                    isCorrupted = true;
-                    errorMsg.append("Validation exception: ").append(ex.getMessage());
-                } finally {
-                    // Limpia directorios temporales
-                    try {
-                        if (tempTdbDir != null) deleteDirectory(new File(tempTdbDir));
-                        if (logFile != null) new File(logFile).delete();
-                    } catch (Exception cleanupEx) {
-                        ImgpediaLogger.warn("Failed to cleanup temp directories for " + ntFile.getName() + ": " + cleanupEx.getMessage());
-                    }
-                }
-
-                // Si hay corrupción, mueve a sanitized
-                if (isCorrupted) {
-                    corruptedCount.incrementAndGet();
-                    ImgpediaLogger.error("CORRUPTED FILE DETECTED: " + ntFile.getName() + " - Moving to sanitized...");
-
-                    File sanitizedNt = new File(sanitizedDirectory, ntFile.getName());
-                    boolean moveSuccess = false;
-                    String moveDetails = "";
-
-                    try {
-                        if (ntFile.exists()) {
-                            if (sanitizedNt.exists()) sanitizedNt.delete();
-                            moveSuccess = ntFile.renameTo(sanitizedNt);
-                            moveDetails = "renameTo: " + moveSuccess;
-                            if (!moveSuccess) {
-                                Files.copy(ntFile.toPath(), sanitizedNt.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                                boolean deleteSuccess = ntFile.delete();
-                                moveSuccess = deleteSuccess;
-                                moveDetails = "copy+delete: delete=" + deleteSuccess;
-                            }
-                            if (moveSuccess) {
-                                ImgpediaLogger.error("✓ MOVED CORRUPTED FILE TO SANITIZED: " + sanitizedNt.getAbsolutePath());
-                            } else {
-                                ImgpediaLogger.error("✗ FAILED TO MOVE CORRUPTED FILE: " + ntFile.getAbsolutePath());
-                            }
-                        } else {
-                            ImgpediaLogger.warn("Original file no longer exists: " + ntFile.getAbsolutePath());
-                            moveDetails = "file_not_found";
-                        }
-                    } catch (Exception moveEx) {
-                        ImgpediaLogger.error("ERROR MOVING CORRUPTED FILE " + ntFile.getName() + " to sanitized: " + moveEx.getMessage());
-                        moveDetails = "exception: " + moveEx.getMessage();
-                        errorMsg.append(" | Move error: ").append(moveEx.getMessage());
-                    }
-
-                    // Log del error
-                    synchronized (RdfConfiguration.class) {
-                        try {
-                            String logEntry = "[CORRUPTED] " + ntFile.getAbsolutePath() +
-                                    " :: " + errorMsg.toString() +
-                                    " | Move details: " + moveDetails +
-                                    " | Moved successfully: " + moveSuccess +
-                                    System.lineSeparator();
-                            Files.write(
-                                    errorLog.toPath(),
-                                    logEntry.getBytes(),
-                                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND
-                            );
-                        } catch (Exception logEx) {
-                            ImgpediaLogger.error("No se pudo escribir el log de validación para " + ntFile.getName() + ": " + logEx.getMessage());
-                        }
-                    }
-                }
-
-                int done = processedCount.incrementAndGet();
-                if (done % 10 == 0 || done == totalFiles) {
-                    ImgpediaLogger.info("[nt xloader Validation] Progreso: " + done + "/" + totalFiles +
-                            " | OK: " + okCount.get() +
-                            " | Corrupted: " + corruptedCount.get());
-                }
-            });
+            executor.submit(() -> validateNtFile(ntFile, validationDir, sanitizedDirectory, errorLog,
+                    processedCount, okCount, corruptedCount, totalFiles));
         }
 
-        executor.shutdown();
-        try {
-            executor.awaitTermination(Long.MAX_VALUE, java.util.concurrent.TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            ImgpediaLogger.error("Thread interrupted during nt xloader validation: " + e.getMessage());
-            Thread.currentThread().interrupt();
-        }
+        shutdownExecutor(executor, "nt xloader validation");
 
-        // LIMPIEZA FINAL
-        try {
-            if (validationDir.exists()) {
-                deleteDirectory(validationDir);
-                ImgpediaLogger.info("Cleaned up validation directory: " + validationDir.getAbsolutePath());
-            }
-        } catch (Exception ex) {
-            ImgpediaLogger.warn("Failed to cleanup main validation directory: " + ex.getMessage());
-        }
+        // Cleanup validation directory
+        deleteDirectory(validationDir);
 
-        ImgpediaLogger.info("=== VALIDACIÓN FINALIZADA ===");
+        ImgpediaLogger.info("=== VALIDATION COMPLETED ===");
         ImgpediaLogger.info("Total OK: " + okCount.get());
         ImgpediaLogger.info("Total Corrupted: " + corruptedCount.get());
         ImgpediaLogger.info("Total Files: " + totalFiles);
 
         if (corruptedCount.get() > 0) {
-            ImgpediaLogger.error("¡¡¡ SE ENCONTRARON " + corruptedCount.get() + " ARCHIVOS CORRUPTOS !!!");
-            ImgpediaLogger.error("Archivos movidos a: " + sanitizedDirectory.getAbsolutePath());
-            ImgpediaLogger.error("Ver detalles en: " + errorLog.getAbsolutePath());
+            ImgpediaLogger.error("Found " + corruptedCount.get() + " corrupted files!");
+            ImgpediaLogger.error("Files moved to: " + sanitizedDirectory.getAbsolutePath());
+            ImgpediaLogger.error("See details in: " + errorLog.getAbsolutePath());
         }
     }
-    // Función auxiliar para eliminar directorios recursivamente
+
+    /**
+     * Validates a single .nt file using tdb1.xloader.
+     */
+    private void validateNtFile(File ntFile, File validationDir, File sanitizedDirectory, File errorLog,
+                                AtomicInteger processedCount, AtomicInteger okCount, AtomicInteger corruptedCount, int totalFiles) {
+        boolean isCorrupted = false;
+        StringBuilder errorMsg = new StringBuilder();
+        String tempTdbDir = null;
+        String logFile = null;
+
+        try {
+            tempTdbDir = new File(validationDir, "tdb_" + Thread.currentThread().getId() + "_" + System.currentTimeMillis()).getAbsolutePath();
+            logFile = new File(validationDir, "xloader_" + ntFile.getName() + "_" + System.currentTimeMillis() + ".log").getAbsolutePath();
+
+            List<String> command = new ArrayList<>();
+            command.add("tdb1.xloader");
+            command.add("--loc=" + tempTdbDir);
+            command.add(ntFile.getAbsolutePath());
+
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.redirectErrorStream(true);
+            pb.redirectOutput(new File(logFile));
+
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+
+            if (exitCode != 0) {
+                isCorrupted = true;
+                try {
+                    String logContent = new String(Files.readAllBytes(new File(logFile).toPath()));
+                    errorMsg.append("tdb1.xloader validation failed (exit code: ")
+                            .append(exitCode)
+                            .append("): ")
+                            .append(logContent.length() > 1000 ? logContent.substring(0, 1000) + "..." : logContent);
+                } catch (Exception logEx) {
+                    errorMsg.append("tdb1.xloader validation failed with exit code: ")
+                            .append(exitCode)
+                            .append(" (could not read log: ")
+                            .append(logEx.getMessage())
+                            .append(")");
+                }
+            } else {
+                okCount.incrementAndGet();
+                ImgpediaLogger.info("Validated successfully: " + ntFile.getName());
+            }
+        } catch (Exception ex) {
+            isCorrupted = true;
+            errorMsg.append("Validation exception: ").append(ex.getMessage());
+        } finally {
+            try {
+                if (tempTdbDir != null) deleteDirectory(new File(tempTdbDir));
+                if (logFile != null) new File(logFile).delete();
+            } catch (Exception cleanupEx) {
+                ImgpediaLogger.warn("Failed to cleanup temp directories for " + ntFile.getName() + ": " + cleanupEx.getMessage());
+            }
+        }
+
+        if (isCorrupted) {
+            corruptedCount.incrementAndGet();
+            ImgpediaLogger.error("CORRUPTED FILE DETECTED: " + ntFile.getName() + " - Moving to sanitized...");
+            moveCorruptedFile(ntFile, sanitizedDirectory, errorMsg, errorLog);
+        }
+
+        int done = processedCount.incrementAndGet();
+        if (done % 10 == 0 || done == totalFiles) {
+            ImgpediaLogger.info("[nt xloader Validation] Progress: " + done + "/" + totalFiles +
+                    " | OK: " + okCount.get() +
+                    " | Corrupted: " + corruptedCount.get());
+        }
+    }
+
+    /**
+     * Moves a corrupted file to the sanitized directory and logs the error.
+     */
+    private void moveCorruptedFile(File ntFile, File sanitizedDirectory, StringBuilder errorMsg, File errorLog) {
+        File sanitizedNt = new File(sanitizedDirectory, ntFile.getName());
+        boolean moveSuccess = false;
+        String moveDetails = "";
+
+        try {
+            if (ntFile.exists()) {
+                if (sanitizedNt.exists()) sanitizedNt.delete();
+                moveSuccess = ntFile.renameTo(sanitizedNt);
+                moveDetails = "renameTo: " + moveSuccess;
+                if (!moveSuccess) {
+                    Files.copy(ntFile.toPath(), sanitizedNt.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    boolean deleteSuccess = ntFile.delete();
+                    moveSuccess = deleteSuccess;
+                    moveDetails = "copy+delete: delete=" + deleteSuccess;
+                }
+                if (moveSuccess) {
+                    ImgpediaLogger.error("✓ MOVED CORRUPTED FILE TO SANITIZED: " + sanitizedNt.getAbsolutePath());
+                } else {
+                    ImgpediaLogger.error("✗ FAILED TO MOVE CORRUPTED FILE: " + ntFile.getAbsolutePath());
+                }
+            } else {
+                ImgpediaLogger.warn("Original file no longer exists: " + ntFile.getAbsolutePath());
+                moveDetails = "file_not_found";
+            }
+        } catch (Exception moveEx) {
+            ImgpediaLogger.error("ERROR MOVING CORRUPTED FILE " + ntFile.getName() + " to sanitized: " + moveEx.getMessage());
+            moveDetails = "exception: " + moveEx.getMessage();
+            errorMsg.append(" | Move error: ").append(moveEx.getMessage());
+        }
+
+        synchronized (RdfConfiguration.class) {
+            try {
+                String logEntry = "[CORRUPTED] " + ntFile.getAbsolutePath() +
+                        " :: " + errorMsg.toString() +
+                        " | Move details: " + moveDetails +
+                        " | Moved successfully: " + moveSuccess +
+                        System.lineSeparator();
+                Files.write(
+                        errorLog.toPath(),
+                        logEntry.getBytes(),
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND
+                );
+            } catch (Exception logEx) {
+                ImgpediaLogger.error("Could not write validation log for " + ntFile.getName() + ": " + logEx.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Recursively finds .nt files, excluding the sanitized directory.
+     */
+    private void findFilesRecursiveExcludingSanitized(File directory, List<File> resultFiles, File sanitizedDirectory) {
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    if (!file.getAbsolutePath().equals(sanitizedDirectory.getAbsolutePath())) {
+                        findFilesRecursiveExcludingSanitized(file, resultFiles, sanitizedDirectory);
+                    }
+                } else if (file.getName().endsWith(".nt")) {
+                    resultFiles.add(file);
+                }
+            }
+        }
+    }
+
+    /**
+     * Deletes a directory and its contents recursively.
+     */
     private void deleteDirectory(File directory) {
         if (directory.exists()) {
             File[] files = directory.listFiles();
@@ -491,22 +531,18 @@ public class RdfConfiguration {
         }
     }
 
-    private void findFilesRecursiveExcludingSanitized(File directory, List<File> rtFiles, File sanitizedDirectory) {
-        File[] files = directory.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    // Excluye la carpeta sanitized
-                    if (!file.getAbsolutePath().equals(sanitizedDirectory.getAbsolutePath())) {
-                        findFilesRecursiveExcludingSanitized(file, rtFiles, sanitizedDirectory);
-                    }
-                } else if (file.getName().endsWith(".nt")) {
-                    rtFiles.add(file);
-                }
-            }
+    /**
+     * Shuts down an executor service and waits for termination.
+     */
+    private void shutdownExecutor(ExecutorService executor, String stage) {
+        executor.shutdown();
+        try {
+            executor.awaitTermination(Long.MAX_VALUE, java.util.concurrent.TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            ImgpediaLogger.error("Thread interrupted during " + stage + ": " + e.getMessage());
+            Thread.currentThread().interrupt();
         }
     }
-
 
     @Bean(name = "rdfModel")
     @ApplicationScope

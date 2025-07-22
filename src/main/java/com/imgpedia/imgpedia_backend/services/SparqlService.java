@@ -29,62 +29,132 @@ import com.imgpedia.imgpedia_backend.utils.MessagesLogs;
 
 /**
  * Service class for executing SPARQL queries on a Jena RDF model.
- * This class provides methods to execute SELECT queries with optional timeouts.
+ * Provides methods to execute SELECT queries with optional timeouts and cancellation support.
  */
 @Service
 public class SparqlService {
 
     private final Model rdfModel;
-
     private final Dataset rdfDataset;
-   
+
+    /**
+     * Stores active queries mapped by clientQueryId.
+     * Each entry contains the QueryExecution and its associated CompletableFuture.
+     */
     public final ConcurrentHashMap<String, Map.Entry<QueryExecution, CompletableFuture<ResultSet>>> activeQueries = new ConcurrentHashMap<>();
 
+    /**
+     * Constructor for SparqlService.
+     *
+     * @param rdfModel   The RDF model to query.
+     * @param rdfDataset The RDF dataset for transactional operations.
+     */
     public SparqlService(@Qualifier("rdfModel") Model rdfModel, @Qualifier("rdfDataset") Dataset rdfDataset) {
         this.rdfModel = rdfModel;
         this.rdfDataset = rdfDataset;
     }
 
-   public ResultSet executeQuery(SparqlQueryDTO queryDTO) throws InterruptedException, ExecutionException, TimeoutException {
+    /**
+     * Executes a SPARQL SELECT query asynchronously with optional timeout.
+     *
+     * @param queryDTO The DTO containing the query, timeout, and clientQueryId.
+     * @return The ResultSet of the query.
+     * @throws InterruptedException   If the execution is interrupted.
+     * @throws ExecutionException    If the execution fails.
+     * @throws TimeoutException      If the execution times out.
+     */
+    public ResultSet executeQuery(SparqlQueryDTO queryDTO)
+            throws InterruptedException, ExecutionException, TimeoutException {
+
         String clientQueryId = queryDTO.getClientQueryId();
-        if (clientQueryId == null || clientQueryId.isEmpty()) {
-            throw new IllegalArgumentException("clientQueryId is required");
-        }
+        validateClientQueryId(clientQueryId);
+
         Query query = createQuery(queryDTO.getQuery());
         Integer timeout = queryDTO.getTimeout();
 
-        QueryExecution qexec = QueryExecutionFactory.create(query, rdfModel);
-        CompletableFuture<ResultSet> future = CompletableFuture.supplyAsync(() -> {
+        QueryExecution queryExecution = QueryExecutionFactory.create(query, rdfModel);
+
+        CompletableFuture<ResultSet> future = CompletableFuture.supplyAsync(() -> executeSelect(queryExecution));
+
+        activeQueries.put(clientQueryId, new AbstractMap.SimpleEntry<>(queryExecution, future));
+
+        try {
+            return getResultSetWithTimeout(future, timeout);
+        } catch (CancellationException e) {
+            throw new RuntimeException("Query cancelled by user");
+        } finally {
+            cleanupQuery(clientQueryId, queryExecution);
+        }
+    }
+
+    /**
+     * Validates that the clientQueryId is not null or empty.
+     *
+     * @param clientQueryId The client query identifier.
+     */
+    private void validateClientQueryId(String clientQueryId) {
+        if (clientQueryId == null || clientQueryId.isEmpty()) {
+            throw new IllegalArgumentException("clientQueryId is required");
+        }
+    }
+
+    /**
+     * Executes the SELECT query within a read transaction and returns a copy of the results.
+     *
+     * @param queryExecution The QueryExecution object.
+     * @return The copied ResultSet.
+     */
+    private ResultSet executeSelect(QueryExecution queryExecution) {
         rdfDataset.begin(ReadWrite.READ);
         try {
-            return copyResults(qexec.execSelect());
+            return copyResults(queryExecution.execSelect());
         } catch (Exception e) {
             if (Thread.currentThread().isInterrupted()) {
-                qexec.abort();
+                queryExecution.abort();
                 throw new RuntimeException("Query cancelled by user");
             }
             throw new RuntimeException(e);
         } finally {
             rdfDataset.end();
         }
-    });
-
-        activeQueries.put(clientQueryId, new AbstractMap.SimpleEntry<>(qexec, future));
-        try {
-            if (timeout == null || timeout == 0) {
-                return future.get();
-            } else {
-                return future.get(timeout, TimeUnit.MILLISECONDS);
-            }
-        } catch (CancellationException e) {
-            throw new RuntimeException("Query cancelled by user");
-        } finally {
-            activeQueries.remove(clientQueryId);
-            qexec.close();
-        }
     }
 
+    /**
+     * Retrieves the ResultSet from the future, applying the timeout if specified.
+     *
+     * @param future  The CompletableFuture for the ResultSet.
+     * @param timeout The timeout in milliseconds, or null/0 for no timeout.
+     * @return The ResultSet.
+     * @throws InterruptedException If interrupted.
+     * @throws ExecutionException  If execution fails.
+     * @throws TimeoutException    If timeout occurs.
+     */
+    private ResultSet getResultSetWithTimeout(CompletableFuture<ResultSet> future, Integer timeout)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        if (timeout == null || timeout == 0) {
+            return future.get();
+        }
+        return future.get(timeout, TimeUnit.MILLISECONDS);
+    }
 
+    /**
+     * Cleans up the query from the activeQueries map and closes the QueryExecution.
+     *
+     * @param clientQueryId   The client query identifier.
+     * @param queryExecution  The QueryExecution to close.
+     */
+    private void cleanupQuery(String clientQueryId, QueryExecution queryExecution) {
+        activeQueries.remove(clientQueryId);
+        queryExecution.close();
+    }
+
+    /**
+     * Creates a SPARQL Query object from a query string.
+     *
+     * @param queryString The SPARQL query string.
+     * @return The Query object.
+     * @throws MalformedQueryException If the query syntax is invalid.
+     */
     private Query createQuery(String queryString) {
         try {
             ImgpediaLogger.info("Creating query");
@@ -94,20 +164,22 @@ public class SparqlService {
         }
     }
 
-
-    private void handleExecutionException(QueryExecution qexec, ExecutionException e, Integer timeout) throws ExecutionException, TimeoutException {
-        if (e.getCause() instanceof TimeoutException) {
-            qexec.abort();
-            throw new TimeoutException(MessagesLogs.QUERY_TIMEOUT + timeout + "ms");
-        } else {
-            throw new ExecutionException(MessagesLogs.QUERY_EXECUTION_FAILED, e);
-        }
-    }
-
+    /**
+     * Copies the results from the original ResultSet.
+     *
+     * @param originalResults The original ResultSet.
+     * @return A copy of the ResultSet.
+     */
     private ResultSet copyResults(ResultSet originalResults) {
         return ResultSetFactory.copyResults(originalResults);
     }
 
+    /**
+     * Stops an active query by its clientQueryId.
+     * Aborts the QueryExecution and cancels the associated future.
+     *
+     * @param clientQueryId The client query identifier.
+     */
     public void stopQuery(String clientQueryId) {
         Map.Entry<QueryExecution, CompletableFuture<ResultSet>> entry = activeQueries.get(clientQueryId);
         if (entry != null) {
@@ -116,5 +188,4 @@ public class SparqlService {
             activeQueries.remove(clientQueryId);
         }
     }
-
 }
