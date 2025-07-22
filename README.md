@@ -152,7 +152,8 @@ docker login
 
 ## Contacto
 
-Para dudas o contribuciones, contacta a los desarrolladores del proyecto IMGpedia.
-
+Para dudas o contribuciones, contactar con desarrolladores del proyecto IMGpedia.
+- `scferrada`
+- `Elemma00`
 ---
 
