@@ -101,13 +101,14 @@ curl --location 'localhost:8081/api/sparql/query' \
 ---
 ## Levantamiento en Ambiente Producción
 
-1. Si realizas cambios y deseas desplegarlos en producción, asegúrate de tener permisos para actualizar la [imagen pública de IMGpedia en Docker Hub](https://hub.docker.com/repository/docker/elemma00/imgpedia_backend/). Alternativamente, puedes crear un Pull Request en el [repositorio de GitHub](https://github.com/Elemma00/imgpedia_backend) para que un administrador lo revise, apruebe y realice el merge, así como la actualización de la imagen en Docker Hub.
+Para desplegar en ambiente de producción, es necesario ejecutar el workflow `build & deploy` disponible en la sección de **Actions** del repositorio de GitHub. Este workflow compila el proyecto, ejecuta las pruebas y realiza el despliegue automático en el entorno configurado. Asegúrate de tener los permisos necesarios para ejecutar acciones en el repositorio.
 
-2. Si ya tienes permisos en el repositorio de Docker Hub, para subir los cambios y actualizar la imagen de Docker hub, asegurate de tener instalado Docker en tu sistema y estar logeado usando el comando
+Para ejecutar el action, haz clic en el botón "Run workflow" y asegúrate de seleccionar la rama donde se encuentran tus cambios. Como buena práctica, primero prueba los cambios en el ambiente de desarrollo, luego haz merge con la rama `main` y finalmente ejecuta el workflow para desplegar en producción.
 
-```sh
-docker login
-```
+### Imagen Docker
+
+La imagen Docker del backend se encuentra disponible en [Docker Hub](https://hub.docker.com/repository/docker/elemma00/imgpedia_backend/). Los cambios y actualizaciones del backend se publican en este repositorio, permitiendo su despliegue sencillo en cualquier entorno compatible con Docker.
+
 
 ---
 
