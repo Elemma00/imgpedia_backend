@@ -118,8 +118,8 @@ La imagen Docker del backend se encuentra disponible en [Docker Hub](https://hub
 
 | Método | Endpoint              | Descripción                              | Autenticación requerida | Parámetros requeridos                |
 |--------|-----------------------|------------------------------------------|------------------------|--------------------------------------|
-| POST   | `/api/sparql/query`   | Ejecutar consulta SPARQL                 | Sí                     | Body JSON: `query`                   |
-| POST   | `/api/sparql/query/stop` | Detener una consulta SPARQL en ejecución | Sí                     | Body JSON: identificador de consulta |
+| POST   | `/api/sparql/query`   | Ejecutar consulta SPARQL                 | No                     | Body JSON: `query`                   |
+| POST   | `/api/sparql/query/stop` | Detener una consulta SPARQL en ejecución | No                     | Body JSON: identificador de consulta |
 
 ### Gestión de usuarios
 
